@@ -118,7 +118,7 @@ export function PeerFileTransport() {
   const account = `${auth.user?.id ?? ""}:${getActiveMobileSessionRealm()}:${auth.isAuthenticated}:${auth.accountGeneration}`;
   // Epoch advances on reconnect; status also invalidates work at disconnect.
   const owner = `${account}:${link.connectionEpoch}:${link.status}`;
-  const enabled = foreground && auth.isAuthenticated && link.status === "online";
+  const enabled = foreground && (auth.isAuthenticated || auth.isLocalMode) && link.status === "online";
   const viewKey = `${owner}:${crashes}`;
   const liveView = useRef(viewKey);
   liveView.current = viewKey;

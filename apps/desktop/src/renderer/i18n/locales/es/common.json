@@ -6235,6 +6235,14 @@
           "deviceCount_many": "{{count}} dispositivos",
           "onlineCount_many": "{{count}} en línea",
           "certificateDays_many": "Vence en {{count}} días"
+        },
+        "workers": {
+          "title": "URL del Worker de Cloudflare",
+          "hint": "Conecta tu propio relé en modo local. Primero prepara este ordenador.",
+          "prepare": "Preparar este ordenador",
+          "publicKeyHint": "Configura esta clave pública como UMEDA_OWNER_PUBLIC_KEY en el Worker, despliega el relé y conecta. Conserva la clave privada de este ordenador.",
+          "connect": "Inicializar y conectar",
+          "connected": "Conectado a tu relé"
         }
       },
       "title": "Conexión remota",

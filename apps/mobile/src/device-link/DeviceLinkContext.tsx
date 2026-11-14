@@ -452,8 +452,8 @@ export function DeviceLinkProvider({ children }: { children: ReactNode }) {
   const currentDataOwnerIdRef = useRef<string | null>(auth.user?.id ?? null);
   currentDataOwnerIdRef.current = auth.user?.id ?? null;
   useLayoutEffect(() => {
-    setRemoteProjectAliasesAccount(auth.isAuthenticated ? auth.user?.id ?? null : null, auth.accountGeneration);
-  }, [auth.accountGeneration, auth.isAuthenticated, auth.user?.id]);
+    setRemoteProjectAliasesAccount((auth.isAuthenticated || auth.isLocalMode) ? auth.user?.id ?? null : null, auth.accountGeneration);
+  }, [auth.accountGeneration, auth.isAuthenticated, auth.isLocalMode, auth.user?.id]);
   const clientRef = useRef<DeviceLinkClient | null>(null);
   const registryRef = useRef(new DeviceLinkTopicRegistry());
   const [subscriptionVersion, setSubscriptionVersion] = useState(0);
@@ -1092,7 +1092,7 @@ export function DeviceLinkProvider({ children }: { children: ReactNode }) {
     const accountGenerationChanged =
       accountGenerationRef.current !== auth.accountGeneration;
     accountGenerationRef.current = auth.accountGeneration;
-    if (!auth.isAuthenticated) {
+    if (!auth.isAuthenticated && (!auth.isLocalMode || !getActiveSelfHostedRelay())) {
       clientRef.current?.stop();
       clientRef.current = null;
       registryRef.current.clear();
@@ -1199,7 +1199,7 @@ export function DeviceLinkProvider({ children }: { children: ReactNode }) {
       frameAuth: currentSelfHostedRelayFrameAuth,
     }, {
       // 自建中转不转发跨账号帧:共享任务改走这条官方连接,见 @cindy/device-link 的 routedClient。
-      active: () => getActiveSelfHostedRelay() !== null,
+      active: () => !auth.isLocalMode && getActiveSelfHostedRelay() !== null,
       options: {
         ...connectionOptions,
         getWsUrl: () => deviceLinkWsUrl(getOfficialDeviceLinkApiBaseUrl()),
@@ -1858,6 +1858,7 @@ export function DeviceLinkProvider({ children }: { children: ReactNode }) {
     connectionEpochFor,
     auth.getAccessToken,
     auth.isAuthenticated,
+    auth.isLocalMode,
     relayRouteGeneration,
     clearPerAccountDeviceLinkState,
     clearOnePresenceWipeTimer,
@@ -2061,7 +2062,7 @@ export function DeviceLinkProvider({ children }: { children: ReactNode }) {
       && clientRef.current?.connectionFor(deviceId).peekOfflineDirectPath(deviceId));
   return <DeviceLinkContext.Provider value={value}>
     <DirectLinkTransport key={`${auth.accountGeneration}:${relayRouteGeneration}`} bridge={directBridge}
-      owner={`${auth.accountGeneration}:${relayRouteGeneration}`} enabled={auth.isAuthenticated && (status === 'online' || retainedDirectActive)} />
+      owner={`${auth.accountGeneration}:${relayRouteGeneration}`} enabled={(auth.isAuthenticated || auth.isLocalMode === true) && (status === 'online' || retainedDirectActive)} />
     {children}
   </DeviceLinkContext.Provider>;
 }

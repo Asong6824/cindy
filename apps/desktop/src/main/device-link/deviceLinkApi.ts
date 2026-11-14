@@ -5,6 +5,7 @@
  * - 自建中转:`Authorization: CindyRelay <设备凭证>`,绝不携带账号 token;跳过刷新与会话失效,
  *   自建中转的 401 只表示中转凭证失效,不能把 Cindy 账号登出。
  */
+import { requireAppCapability } from '../appCapabilities.js';
 import { getClientEndpoint } from '../clientEndpointsService.js';
 import { serverApiFetch, type ApiFetchOptions } from '../serverApiClient.js';
 import { activeSelfHostedRelay } from './selfHostedRelayRouting.js';
@@ -24,6 +25,7 @@ export function officialDeviceLinkApiFetch<T>(
   apiPath: string,
   opts: Omit<ApiFetchOptions, 'baseUrl' | 'token' | 'authorization'> = {},
 ): Promise<T> {
+  requireAppCapability('canUseCindyAccountServices');
   return serverApiFetch<T>(apiPath, {
     ...opts,
     // 401 重试可随账号区域更新官方端点，不能随中转选择跨到自建地址。

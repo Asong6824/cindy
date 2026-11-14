@@ -51,5 +51,10 @@
     "failed": "Beitritt zum Relay fehlgeschlagen. Versuche es später erneut.",
     "saveFailed": "Die Anfrage wurde bestätigt, aber die Relay-Zugangsdaten konnten nicht auf diesem Handy gespeichert werden. Erstelle einen neuen Beitrittslink auf deinem Computer und versuche es erneut.",
     "credentialUnavailable": "Dieses Handy hat keine verwendbaren Relay-Zugangsdaten. Tritt erneut bei oder wechsle in den Einstellungen zum offiziellen Relay zurück."
+  },
+  "standalone": {
+    "none": "Nicht eingerichtet",
+    "hint": "Öffne den Beitrittslink oder scanne den QR-Code deines Computers, um deinen eigenen Relay zu verbinden.",
+    "body": "Dieses Telefon verbindet sich über deinen Relay mit deinen Computern. Ein Cindy-Konto ist nicht erforderlich."
   }
 }

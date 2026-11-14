@@ -29,7 +29,7 @@ const RELAY_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a
 
 export type RelayRole = 'owner' | 'member';
 /** 当前中转从哪来:本机开启 / 部署到服务器 / 加入别人的。 */
-export type RelayOrigin = 'host' | 'server' | 'join';
+export type RelayOrigin = 'host' | 'server' | 'join' | 'cloudflare';
 
 export interface ActiveRelay {
   relayId: string;
@@ -73,6 +73,8 @@ export interface RelayConfig {
   host: RelayHostSettings;
   /** 部署到服务器的中转,按部署顺序;中转 ID 与 SSH 主机都不重复。 */
   deployments: RelayDeployment[];
+  /** Public metadata for the pending/active Workers relay. Secrets use the existing encrypted store. */
+  cloud?: ActiveRelay | null;
 }
 
 /** 本机在某个中转上的秘密。 */
@@ -123,7 +125,7 @@ function parseActive(raw: unknown): ActiveRelay | null {
     !isString(a.name) ||
     !isString(a.baseUrl) ||
     (a.role !== 'owner' && a.role !== 'member') ||
-    (a.origin !== 'host' && a.origin !== 'server' && a.origin !== 'join') ||
+    (a.origin !== 'host' && a.origin !== 'server' && a.origin !== 'join' && a.origin !== 'cloudflare') ||
     !isString(a.deviceId) ||
     !isRelayPublicKey(a.ownerPublicKey)
   ) {
@@ -191,6 +193,7 @@ function parseConfig(raw: unknown): RelayConfig {
   return {
     version: CONFIG_VERSION,
     active: current ? parseActive(value.active) : null,
+    cloud: current ? parseActive(value.cloud) : null,
     host: {
       enabled: current && host.enabled === true,
       port: typeof host.port === 'number' && Number.isInteger(host.port) ? host.port : DEFAULT_RELAY_PORT,

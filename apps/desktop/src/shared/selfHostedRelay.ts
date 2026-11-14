@@ -13,6 +13,8 @@ export const DEFAULT_RELAY_PORT = 47820;
 
 export type SelfHostedRelayCommand =
   | { type: 'state' }
+  | { type: 'prepare-cloud'; baseUrl: string; name: string }
+  | { type: 'connect-cloud' }
   /** 在这台电脑上开启中转;已开启时按新设置重启。 */
   | { type: 'enable-host'; port: number; listenAll: boolean; externalUrl: string | null }
   /** 停用本机中转,并切回官方中转。 */
@@ -206,8 +208,9 @@ export interface SelfHostedRelayDeploymentView {
 export interface SelfHostedRelayState {
   /** 已登录且系统安全存储可用。 */
   available: boolean;
+  cloud?: { baseUrl: string; ownerPublicKey: string; connected: boolean } | null;
   mode: 'official' | 'self-hosted';
-  relay: { name: string; baseUrl: string; role: 'owner' | 'member'; origin: 'host' | 'server' | 'join' } | null;
+  relay: { name: string; baseUrl: string; role: 'owner' | 'member'; origin: 'host' | 'server' | 'join' | 'cloudflare' } | null;
   /** 自建模式下的连接情况:设备被移出中转 / 凭证被拒。 */
   issue: 'removed' | 'unauthorized' | null;
   host: {
@@ -271,6 +274,7 @@ export function parseSelfHostedRelayCommand(raw: unknown): SelfHostedRelayComman
   if (!isRecord(raw) || typeof raw.type !== 'string') return null;
   switch (raw.type) {
     case 'state':
+    case 'connect-cloud':
     case 'disable-host':
     case 'create-join-link':
     case 'cancel-join':
@@ -288,6 +292,15 @@ export function parseSelfHostedRelayCommand(raw: unknown): SelfHostedRelayComman
       const relayId = relayIdOf(raw);
       const name = normalizeRelayName(raw.name);
       return relayId && name ? { type: 'rename-deployment', relayId, name } : null;
+    }
+    case 'prepare-cloud': {
+      const name = normalizeRelayName(raw.name);
+      if (!name || typeof raw.baseUrl !== 'string' || raw.baseUrl.length > 512) return null;
+      try {
+        const url = new URL(raw.baseUrl);
+        if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || url.pathname !== '/') return null;
+        return { type: 'prepare-cloud', baseUrl: url.origin, name };
+      } catch { return null; }
     }
     case 'check-server':
       if (typeof raw.sshHostId !== 'string' || !SSH_HOST_ID_PATTERN.test(raw.sshHostId)) return null;

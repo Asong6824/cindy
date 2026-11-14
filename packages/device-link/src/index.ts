@@ -86,3 +86,4 @@ export * from "./machineStatus.js";
 export * from "./pluginPages.js";
 
 export { StallDiagnostics, diagnosticChannel, diagnosticRef, diagnosticOperation } from './stallDiagnostics.js';
+export { signRelayInitialization, verifyRelayInitialization, type RelayInitialization } from './relayInitialization.js';

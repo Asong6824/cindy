@@ -89,6 +89,6 @@ export function useHomeStartupSplashRelease(releaseSplash: () => void): void {
   // because the startup gate was also listening to lastTeammate or home display preferences.
   const hydrated = useSyncExternalStore(subscribe, () => entry.snapshot.hydrated, () => initial.hydrated);
   useEffect(() => {
-    if (auth.initialized && (!auth.isAuthenticated || !owner || hydrated)) releaseSplash();
-  }, [auth.initialized, auth.isAuthenticated, hydrated, owner, releaseSplash]);
+    if (auth.initialized && (!(auth.isAuthenticated || auth.isLocalMode) || !owner || hydrated)) releaseSplash();
+  }, [auth.initialized, auth.isAuthenticated, auth.isLocalMode, hydrated, owner, releaseSplash]);
 }

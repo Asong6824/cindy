@@ -20,7 +20,7 @@ import {
 import { nodeRelayAuthCrypto } from '@cindy/device-link/node-relay-crypto';
 import { isRelayPublicKey, verifyRelayDeviceCert, type RelayDeviceCert } from '@cindy/device-link/relay-auth';
 import { RelayError } from './errors';
-import { DEVICE_ID_PATTERN, normalizeName, type RelayStore, type StoredDevice } from './store';
+import { DEVICE_ID_PATTERN, normalizeName, type RelayStorePort, type StoredDevice } from './stateModel';
 
 export const JOIN_CODE_TTL_MS = 10 * 60 * 1000;
 const PAIR_REQUEST_TTL_MS = 10 * 60 * 1000;
@@ -32,7 +32,7 @@ const PROOF_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 type PairStatus = 'pending' | 'approved' | 'rejected';
 
-interface PairRequest {
+export interface PairRequest {
   requestId: string;
   pollTokenHash: string;
   deviceId: string;
@@ -83,10 +83,23 @@ export class Pairing {
   private readonly submitsBySource = new Map<string, number[]>();
 
   constructor(
-    private readonly store: RelayStore,
+    private readonly store: RelayStorePort,
     private readonly now: () => number,
     private readonly onAdmitted: (device: StoredDevice) => void,
   ) {}
+
+  /** Only hashes/public keys are persisted; recover pending approvals after hibernation. */
+  snapshot() {
+    this.expire();
+    return { joinCodes: [...this.joinCodes], requests: [...this.requests], submitsBySource: [...this.submitsBySource] };
+  }
+
+  restore(snapshot: ReturnType<Pairing['snapshot']>): void {
+    for (const [key, value] of snapshot.joinCodes) this.joinCodes.set(key, value);
+    for (const [key, value] of snapshot.requests) this.requests.set(key, value);
+    for (const [key, value] of snapshot.submitsBySource) this.submitsBySource.set(key, value);
+    this.expire();
+  }
 
   createJoinCode(): { code: string; expiresAt: string } {
     this.expire();

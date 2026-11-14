@@ -51,5 +51,10 @@
     "failed": "No pude unirme al relevo. Vuelve a intentarlo más tarde.",
     "saveFailed": "La solicitud fue aprobada, pero la credencial de retransmisión no se pudo guardar en este teléfono. Cree un nuevo enlace para unirse en su computadora e inténtelo nuevamente.",
     "credentialUnavailable": "Este teléfono no tiene una credencial de retransmisión utilizable. Únete de nuevo o vuelve al relevo oficial en Configuración."
+  },
+  "standalone": {
+    "none": "Sin configurar",
+    "hint": "Abre el enlace de acceso o escanea el código QR de tu ordenador para conectar tu propio relé.",
+    "body": "Este teléfono se conecta a tus ordenadores a través de tu relé. No se necesita una cuenta de Cindy."
   }
 }

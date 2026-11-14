@@ -162,7 +162,7 @@ export function RemoteControlSection() {
   const { mode } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const deviceLinkAvailable = mode === 'cloud';
+  const deviceLinkAvailable = mode === 'cloud' || mode === 'local';
   const s = useDeviceLinkSettings(deviceLinkAvailable);
 
   // 深链 ?section=devices 必须在首帧就是展开态:放到 effect 里会先画一帧收起,

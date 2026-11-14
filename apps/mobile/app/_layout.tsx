@@ -1,3 +1,4 @@
+import { UMEDA_STANDALONE } from '@/config/standalone';
 import { SharedTaskListProvider } from '@/session/SharedTaskList';
 import { taskListScreenAnimation } from '@/session/taskListNavigationPolicy';
 import { completePrecreatedWorktreeRecovery } from '@/session/completePrecreatedWorktreeRecovery';
@@ -194,7 +195,7 @@ function NavigationGate() {
     // 供应商分享链接的提示页只说明「请在电脑上打开」,不读账号数据,未登录也直接显示。
     // 加入中转页未登录时只提示先登录(不发任何请求),同样直接显示。
     if (
-      !auth.isAuthenticated &&
+      !auth.isAuthenticated && !auth.isLocalMode &&
       !inAuthGroup &&
       segments[0] !== 'provider-share' &&
       segments[0] !== 'relay-join'
@@ -202,14 +203,14 @@ function NavigationGate() {
       router.replace('/login');
       return;
     }
-    if (auth.isAuthenticated && inAuthGroup) {
+    if ((auth.isAuthenticated || auth.isLocalMode) && inAuthGroup) {
       if (pendingSharedTaskInvitation) router.replace('/shared-session');
       else if (pendingRelayJoin) router.replace('/relay-join');
       else router.replace('/');
     } else if (auth.isAuthenticated && pendingSharedTaskInvitation && segments.join('/') !== 'shared-session') {
       router.replace('/shared-session');
     }
-  }, [auth.initialized, auth.isAuthenticated, pendingRelayJoin, pendingSharedTaskInvitation, router, segments]);
+  }, [auth.initialized, auth.isAuthenticated, auth.isLocalMode, pendingRelayJoin, pendingSharedTaskInvitation, router, segments]);
 
   useEffect(() => {
     if (!auth.isAuthenticated || !auth.accountDeletionRestored) return;
@@ -278,8 +279,8 @@ function AuthHandoffBridge() {
   const dispatch = handoff.dispatch;
   useEffect(() => {
     if (!auth.initialized) return;
-    dispatch({ type: 'auth-init', authenticated: auth.isAuthenticated });
-  }, [auth.initialized, auth.isAuthenticated, dispatch]);
+    dispatch({ type: 'auth-init', authenticated: auth.isAuthenticated || auth.isLocalMode === true });
+  }, [auth.initialized, auth.isAuthenticated, auth.isLocalMode, dispatch]);
   return null;
 }
 
@@ -316,7 +317,7 @@ function PrecreatedWorktreeRecoveryBridge() {
   const runRecovery = useCallback(async () => {
     if (
       !auth.initialized
-      || !auth.isAuthenticated
+      || (!auth.isAuthenticated && !auth.isLocalMode)
       || !accountId
       || deviceLinkStatus !== 'online'
     ) {
@@ -410,6 +411,10 @@ function RootAfterUpdateChannel({ channel }: { channel: UpdateChannel }) {
   if (!otaReady) {
     return null;
   }
+  return <MobileBusinessRoot />;
+}
+
+function MobileBusinessRoot() {
   return (
     <AuthProvider>
       <AuthHandoffBridge />
@@ -433,6 +438,12 @@ function RootAfterUpdateChannel({ channel }: { channel: UpdateChannel }) {
  * 端点闸门之后的应用主体:OTA 检查更新与业务树都在这里——保证「拉端点清单」
  * 严格先于「检查更新」(本组件只在端点闸门 ready 后才挂载)。
  */
+function StandaloneRoot() {
+  const { dispatch } = useLoginHandoff();
+  useEffect(() => { dispatch({ type: 'ota-ready' }); }, [dispatch]);
+  return <MobileBusinessRoot />;
+}
+
 function RootAfterEndpoints() {
   // 更新检查早于 AuthProvider，必须先恢复上次登录同步到本机的 canary 快照 + 设备 beta 开关。
   // 未持久化/读取失败一律 release；读取完成前不允许发任何 /manifest 或 /latest 请求。
@@ -458,7 +469,7 @@ function RootLayout() {
   // 使用统计(TapDB):这里只是"尝试"初始化——用户没同意过《隐私政策》时同意闸会
   // 直接挡回 not_consented,原生 SDK 一个字节都不会读写(见 analytics/mobileTapdb)。
   useEffect(() => {
-    void initMobileTapdb();
+    if (!UMEDA_STANDALONE) void initMobileTapdb();
   }, []);
   // 远程端点清单闸门(阻断式):冷启动第一步、先于 OTA 检查更新拉取 OSS 清单,
   // 回写 env live binding。拉不到 / 清单非法 → 错误屏等用户重试,无缓存与超时兜底;
@@ -471,7 +482,9 @@ function RootLayout() {
   // GestureHandlerRootView 必须在根部常驻(RNGH 官方要求;缺失时 Android 手势整体不响应)。
   // 各分支都包同一层,避免闸门状态切换时 root 重挂。
   let body: ReactElement | null;
-  if (endpointGate.status === 'error') {
+  if (UMEDA_STANDALONE) {
+    body = <StandaloneRoot />;
+  } else if (endpointGate.status === 'error') {
     // 白底体系(PR4a):错误屏包 MobileLoginHandoffStage(品牌显示),阻断内容层
     // 透明置于其上——阻断语义不变:没有"跳过 / 稍后再说",只有重试。
     body = (

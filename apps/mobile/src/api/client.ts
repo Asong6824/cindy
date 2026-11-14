@@ -1,3 +1,4 @@
+import { UMEDA_STANDALONE } from '@/config/standalone';
 import { i18n } from '@/i18n';
 import { mobileDebugLog } from '@/debug/mobileDebugLog';
 import { selfHostedRelayAuthorizationFor } from '@/device-link/selfHostedRelayRouting';
@@ -62,6 +63,7 @@ export async function apiFetchRaw<T>(
   if (opts.signal?.aborted) throw requestAborted();
   // 自建中转(docs/self-hosted-relay-plan.md §5.3):按目标地址换成中转凭证,账号 token 不发过去。
   const relayAuth = selfHostedRelayAuthorizationFor(opts.baseUrl);
+  if (UMEDA_STANDALONE && !relayAuth) throw new ApiError('LOCAL_MODE', 403, i18n.t('apiErrors.requestFailed'));
   if (relayAuth?.kind === 'blocked') {
     throw new ApiError(RELAY_CREDENTIAL_UNAVAILABLE, 0, i18n.t('relay.errors.credentialUnavailable'));
   }

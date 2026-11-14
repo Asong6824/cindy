@@ -23,6 +23,7 @@ import {
   createRelayPairSecret,
   createRelaySigningKey,
   issueRelayDeviceCert,
+  signRelayInitialization,
   parseRelayJoinLink,
   submitRelayPairRequest,
   verifyRelayPairProof,
@@ -33,7 +34,8 @@ import { nodeRelayAuthCrypto as crypto } from '@cindy/device-link/node-relay-cry
 import { createDeviceCredential, initializeRelay, startRelayServer } from '../src/index';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
-const OWNER_USER = 'interop-account';
+const cloudflare = process.argv.includes('--cloudflare');
+const OWNER_USER = cloudflare ? 'local-v1' : 'interop-account';
 
 async function call(base: string, method: string, pathname: string, init: { credential?: string; body?: unknown; pollToken?: string } = {}) {
   const headers: Record<string, string> = {};
@@ -55,8 +57,7 @@ async function main(): Promise<number> {
   const owner = createDeviceCredential();
   const ownerKey = createRelaySigningKey(crypto);
   const relayId = randomUUID();
-  await initializeRelay({
-    dataDir,
+  const initialization = {
     name: 'Interop relay',
     ownerUserId: OWNER_USER,
     ownerDeviceId: 'interop-owner-desktop',
@@ -71,8 +72,10 @@ async function main(): Promise<number> {
       role: 'owner',
       issuedAt: Date.now(),
     }),
-  });
-  const relay = await startRelayServer({ dataDir, port: 0 });
+  };
+  const relay = cloudflare
+    ? await (await import('./cloudflare-runtime')).startCloudflareRelay(initialization, signRelayInitialization(crypto, ownerKey.seed, initialization))
+    : (await initializeRelay({ dataDir, ...initialization }), await startRelayServer({ dataDir, port: 0 }));
   try {
     const base = relay.localUrl;
     // 与 Desktop / Mobile 相同的加入路径:主人生成加入链接,新设备解析链接、申请、等主人同意。

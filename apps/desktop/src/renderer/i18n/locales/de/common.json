@@ -6174,6 +6174,14 @@
           "version": "Relay-Version",
           "latest": "Auf dem neuesten Stand",
           "remove": "Dieses Relay entfernen"
+        },
+        "workers": {
+          "title": "Cloudflare-Worker-URL",
+          "hint": "Verbinde deinen eigenen Relay im lokalen Modus. Bereite zuerst diesen Computer vor.",
+          "prepare": "Diesen Computer vorbereiten",
+          "publicKeyHint": "Setze diesen öffentlichen Schlüssel im Worker als UMEDA_OWNER_PUBLIC_KEY, stelle den Relay bereit und verbinde dich dann. Bewahre den privaten Schlüssel dieses Computers auf.",
+          "connect": "Initialisieren und verbinden",
+          "connected": "Mit deinem Relay verbunden"
         }
       },
       "title": "Remote-Verbindung",

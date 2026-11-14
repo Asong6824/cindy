@@ -67,7 +67,7 @@ import { DEVICE_LINK_VOICE_DICTIONARY_SNAPSHOT_CHANNEL } from '@cindy/maker-shar
 import { sanitizeSourceName, type MessageSourceHostDevice } from '@cindy/maker-shared/message-source';
 import * as authManager from '../authManager';
 import { remoteCredentialHost } from '../remote-desktop/credentialHost';
-import { activeOwnerScopeKey, getActiveDataOwnerPushStamp, isAppSessionBoundaryPending } from '../appSessionState.js';
+import { activeOwnerScopeKey, getActiveAppSession, getActiveDataOwnerPushStamp, isAppSessionBoundaryPending } from '../appSessionState.js';
 import { createLogger } from '../logger';
 import { markStartupMilestone } from '../startupTimeline';
 import { onQuit } from '../lifecycle';
@@ -826,6 +826,7 @@ export function initDeviceLinkService(options: DeviceLinkServiceOptions = {}): v
     return membership && token ? { realm: authManager.getActiveAuthRealm(), membership, authDevice: authManager.getDeviceId(), token } : null;
   };
   const accountToken = async (): Promise<string | null> => {
+    if (getActiveAppSession().mode !== 'cloud' || isAppSessionBoundaryPending()) return null;
     const token = authManager.getAccessToken();
     if (token) return token;
     // 无现值(冷启动竞态/过期被清):尝试 refresh 一次,失败则跳过本轮重连
@@ -889,12 +890,12 @@ export function initDeviceLinkService(options: DeviceLinkServiceOptions = {}): v
       // Prepare the name before the first hello without blocking Electron's main thread.
       await deviceNameReady;
       const relay = activeSelfHostedRelay();
-      if (relay) return authManager.getAuthState().isAuthenticated ? relay.credential : null;
+      if (relay) return !isAppSessionBoundaryPending() && canConnectDeviceLink() ? relay.credential : null;
       return accountToken();
     },
   }, {
     // 自建中转不转发跨账号帧:共享任务与供应商分享改走这条官方连接,见 routedClient.ts。
-    active: () => activeSelfHostedRelay() !== null,
+    active: () => getActiveAppSession().mode === 'cloud' && activeSelfHostedRelay() !== null,
     options: {
       ...connectionOptions,
       // dedupe 基线属于主连接:这条连接重连时只读当前值,不能吞掉主连接该发的 busy 更新。
@@ -1385,9 +1386,9 @@ export function initDeviceLinkService(options: DeviceLinkServiceOptions = {}): v
     getLock: getOwnershipLock,
     onAcquire: () => {
       // 认领成功但期间已登出:不连(登出路径已 stop 仲裁,这里是 tick 竞态兜底)
-      if (!authManager.getAuthState().isAuthenticated) return;
+      if (!canConnectDeviceLink()) return;
       linkTornDown = false;
-      if (client) startSharedTaskRuntime({
+      if (client && getActiveAppSession().mode === 'cloud') startSharedTaskRuntime({
         client,
         revoke(sharedTaskId, memberId) {
           for (const id of getKnownControllerIds()) {
@@ -1401,11 +1402,11 @@ export function initDeviceLinkService(options: DeviceLinkServiceOptions = {}): v
         },
         changed(sharedTaskId) { broadcast('shared-task:changed', { sharedTaskId }); },
       });
-      startProviderShareRuntime(broadcast, { invoke: remoteBackgroundInvoke });
+      if (getActiveAppSession().mode === 'cloud') startProviderShareRuntime(broadcast, { invoke: remoteBackgroundInvoke });
       client?.start();
       stopNetworkWatch?.();
       stopNetworkWatch = watchNetworkChanges(() => {
-        if (linkTornDown || !arbiter?.isOwner() || !authManager.getAuthState().isAuthenticated) return;
+        if (linkTornDown || !arbiter?.isOwner() || !canConnectDeviceLink()) return;
         client?.notifyNetworkChanged();
       });
       // 可靠帧可能在 ownership 接管前到达(那时非持有者,重建被 shouldAbort 挡掉):
@@ -1476,12 +1477,18 @@ export function initDeviceLinkService(options: DeviceLinkServiceOptions = {}): v
     'async',
   );
 
-  log.info(`device-link service initialized → ${wsUrl()}`);
+  log.info('device-link service initialized');
+}
+
+function canConnectDeviceLink(): boolean {
+  if (authManager.getAuthState().isAuthenticated) return true;
+  return !isAppSessionBoundaryPending() &&
+    getActiveAppSession().mode === 'local' && activeSelfHostedRelay() !== null;
 }
 
 function syncWithAuthState(isAuthenticated: boolean, realmChanged = false): void {
   if (!client || !arbiter) return;
-  if (isAuthenticated) {
+  if (isAuthenticated || canConnectDeviceLink()) {
     if (realmChanged) {
       restartDeviceLinkForAuthRealmChange();
       return;
@@ -1510,7 +1517,7 @@ function restartDeviceLinkForAuthRealmChange(): void {
     .then(() => {
       if (
         generation !== authRealmReconnectGeneration ||
-        !authManager.getAuthState().isAuthenticated ||
+        !canConnectDeviceLink() ||
         authManager.getActiveAuthRealm() !== targetRealm
       ) {
         return;
@@ -1525,14 +1532,14 @@ function restartDeviceLinkForAuthRealmChange(): void {
  */
 export function restartDeviceLinkForRelayChange(): void {
   if (!client || !arbiter) return;
-  if (!authManager.getAuthState().isAuthenticated) return;
+  // Clearing a local route must still retire the previous connection.
   const generation = ++authRealmReconnectGeneration;
   void stopArbitrationAndTeardown()
     .catch((error) => {
       log.warn('device-link ownership release during relay switch failed', error);
     })
     .then(() => {
-      if (generation !== authRealmReconnectGeneration || !authManager.getAuthState().isAuthenticated) return;
+      if (generation !== authRealmReconnectGeneration || !canConnectDeviceLink()) return;
       arbiter?.start();
     });
 }
@@ -1700,7 +1707,7 @@ export function clearDeviceResponsiveness(deviceId: string): void {
 export function handleDeviceLinkSystemResume(): void {
   if (!client || linkTornDown) return;
   if (arbiter && !arbiter.isOwner()) return;
-  if (!authManager.getAuthState().isAuthenticated) return;
+  if (!canConnectDeviceLink()) return;
   log.info('system resume: rebuilding device-link connection immediately');
   client.restartConnections('system-resume');
 }

@@ -1,3 +1,5 @@
+import { UMEDA_STANDALONE } from '@/config/standalone';
+import { StandaloneAuthProvider } from './StandaloneAuthProvider';
 import * as WebBrowser from 'expo-web-browser';
 import { requireNativeModule } from 'expo-modules-core';
 import {
@@ -288,6 +290,8 @@ export interface AuthContextValue {
   initialized: boolean;
   isBusy: boolean;
   isAuthenticated: boolean;
+  /** Explicit standalone build; does not grant account services. */
+  isLocalMode?: boolean;
   user: MobileUser | null;
   deviceId: string | null;
   loginState: AuthFlowState | null;
@@ -334,6 +338,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 /** Owns auth-server credentials and login tickets for the mobile process. */
 export function AuthProvider({ children }: { children: ReactNode }) {
+  if (UMEDA_STANDALONE) return <StandaloneAuthProvider context={AuthContext}>{children}</StandaloneAuthProvider>;
   if (MOBILE_VISUAL_MOCK_ENABLED) {
     const value: AuthContextValue = {
       initialized: true,

@@ -6131,6 +6131,14 @@
           "version": "リレーのバージョン",
           "latest": "最新",
           "remove": "このリレーを削除"
+        },
+        "workers": {
+          "title": "Cloudflare Worker の URL",
+          "hint": "ローカルモードで自分の中継に接続します。まず、このコンピューターを準備してください。",
+          "prepare": "このコンピューターを準備",
+          "publicKeyHint": "この公開鍵を Worker の UMEDA_OWNER_PUBLIC_KEY に設定し、中継をデプロイしてから接続してください。このコンピューターの秘密鍵を保管してください。",
+          "connect": "初期化して接続",
+          "connected": "自分の中継に接続済み"
         }
       },
       "title": "リモート接続",

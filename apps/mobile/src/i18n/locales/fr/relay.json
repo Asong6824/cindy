@@ -51,5 +51,10 @@
     "failed": "Impossible de rejoindre le relais. Réessayez plus tard.",
     "saveFailed": "La demande a été approuvée, mais l'identifiant du relais n'a pas pu être enregistré sur ce téléphone. Créez un nouveau lien d'invitation sur votre ordinateur et réessayez.",
     "credentialUnavailable": "Ce téléphone n'a pas d'identifiant de relais utilisable. Rejoignez-le à nouveau, ou revenez au relais officiel dans les Paramètres."
+  },
+  "standalone": {
+    "none": "Non configuré",
+    "hint": "Ouvrez le lien d’invitation ou scannez le code QR de votre ordinateur pour connecter votre relais.",
+    "body": "Ce téléphone se connecte à vos ordinateurs via votre relais. Aucun compte Cindy n’est requis."
   }
 }

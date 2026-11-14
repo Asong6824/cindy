@@ -6131,6 +6131,14 @@
           "version": "中转版本",
           "latest": "已是最新",
           "remove": "移除这个中转"
+        },
+        "workers": {
+          "title": "Cloudflare Worker 地址",
+          "hint": "在本地模式下连接自己的中转。先准备这台电脑。",
+          "prepare": "准备这台电脑",
+          "publicKeyHint": "将此公钥设为 Worker 的 UMEDA_OWNER_PUBLIC_KEY，部署中转后再连接。请保留这台电脑的私钥。",
+          "connect": "初始化并连接",
+          "connected": "已连接到你的中转"
         }
       },
       "title": "远程连接",

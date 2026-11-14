@@ -51,5 +51,10 @@
     "failed": "Não foi possível aderir ao relay. Tente novamente mais tarde.",
     "saveFailed": "O pedido foi aprovado, mas não foi possível guardar a credencial do relay neste telemóvel. Crie uma nova ligação de adesão no computador e tente novamente.",
     "credentialUnavailable": "Este telemóvel não tem uma credencial de relay utilizável. Adira novamente ou volte ao relay oficial nas Definições."
+  },
+  "standalone": {
+    "none": "Por configurar",
+    "hint": "Abre a ligação de adesão ou lê o código QR do computador para ligares o teu próprio relay.",
+    "body": "Este telemóvel liga-se aos teus computadores através do teu relay. Não é necessária uma conta Cindy."
   }
 }

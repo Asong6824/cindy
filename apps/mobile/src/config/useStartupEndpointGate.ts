@@ -1,3 +1,4 @@
+import { UMEDA_STANDALONE } from './standalone';
 // 启动端点清单闸门 hook:冷启动时跑 runStartupEndpointResolve,成功前业务树
 // 不挂载。网络故障可用本区缓存/随包完整清单继续；配置错误仍进入 error 态，
 // 由 _layout 渲染错误屏，用户点重试再跑一次。清单缺失/空白字段允许放行。
@@ -42,7 +43,7 @@ export function useStartupEndpointGate(): StartupEndpointGate {
   const defaultEndpointGateEnabled =
     !__DEV__ || resolveEnvFlag(process.env.EXPO_PUBLIC_ENDPOINTS_CDN);
   const enabled =
-    defaultEndpointGateEnabled || DEV_SERVER_ENVIRONMENT_SWITCH_ENABLED;
+    !UMEDA_STANDALONE && (defaultEndpointGateEnabled || DEV_SERVER_ENVIRONMENT_SWITCH_ENABLED);
   const [status, setStatus] = useState<StartupEndpointGateStatus>(
     enabled ? 'pending' : 'ready',
   );

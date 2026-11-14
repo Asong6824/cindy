@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 /**
  * 中转凭证与一次性秘密。
  *

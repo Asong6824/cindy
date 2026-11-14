@@ -6131,6 +6131,14 @@
           "version": "中繼版本",
           "latest": "已是最新",
           "remove": "移除這個中繼"
+        },
+        "workers": {
+          "title": "Cloudflare Worker 位址",
+          "hint": "在本機模式下連接自己的中轉。先準備這台電腦。",
+          "prepare": "準備這台電腦",
+          "publicKeyHint": "將此公鑰設為 Worker 的 UMEDA_OWNER_PUBLIC_KEY，部署中轉後再連接。請保留這台電腦的私鑰。",
+          "connect": "初始化並連接",
+          "connected": "已連接到你的中轉"
         }
       },
       "title": "遠端連線",

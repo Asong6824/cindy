@@ -51,5 +51,10 @@
     "failed": "Couldn’t join the relay. Try again later.",
     "saveFailed": "The request was approved, but the relay credential couldn’t be saved on this phone. Create a new join link on your computer and try again.",
     "credentialUnavailable": "This phone doesn’t have a usable relay credential. Join again, or switch back to the official relay in Settings."
+  },
+  "standalone": {
+    "none": "Not configured",
+    "hint": "Open the join link or scan the QR code from your computer to connect to your own relay.",
+    "body": "This phone connects to your computers through your relay. No Cindy account is required."
   }
 }

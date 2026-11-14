@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "umeda",
+  "main": "cloudflare/worker.ts",
+  "compatibility_date": "2026-11-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [{ "name": "UMEDA_RELAY", "class_name": "UmedaRelay" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["UmedaRelay"] }],
+  "observability": { "enabled": false }
+}

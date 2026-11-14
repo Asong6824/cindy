@@ -6235,6 +6235,14 @@
           "deviceCount_many": "{{count}} appareils",
           "onlineCount_many": "{{count}} en ligne",
           "certificateDays_many": "Expire dans {{count}} jours"
+        },
+        "workers": {
+          "title": "URL du Worker Cloudflare",
+          "hint": "Connectez votre relais en mode local. Commencez par préparer cet ordinateur.",
+          "prepare": "Préparer cet ordinateur",
+          "publicKeyHint": "Définissez cette clé publique comme UMEDA_OWNER_PUBLIC_KEY dans le Worker, déployez le relais, puis connectez-vous. Conservez la clé privée de cet ordinateur.",
+          "connect": "Initialiser et connecter",
+          "connected": "Connecté à votre relais"
         }
       },
       "title": "Connexion à distance",

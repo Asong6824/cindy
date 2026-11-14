@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 /**
  * WebSocket 中转:与官方 relay 相同的线协议(`@cindy/device-link-protocol` v1)。
  *
@@ -21,9 +22,8 @@ import {
   type PresenceSnapshot,
   type RelayErrorCode,
 } from '@cindy/device-link-protocol';
-import WebSocket from 'ws';
 import type { RelayLogger } from './logger';
-import type { RelayStore, StoredDevice } from './store';
+import type { RelayStorePort, StoredDevice } from './stateModel';
 
 export const CLOSE_VERSION_MISMATCH = 4400;
 export const CLOSE_HELLO_REQUIRED = 4401;
@@ -35,6 +35,8 @@ export const CLOSE_CONGESTED = 1013;
 const MAX_AUTH_CHARS = 512;
 
 export interface HubLimits {
+  /** Durable Objects persist connection state and schedule their own alarms. */
+  hibernating?: boolean;
   helloTimeoutMs: number;
   idleTimeoutMs: number;
   maxConnections: number;
@@ -50,13 +52,27 @@ export const DEFAULT_HUB_LIMITS: HubLimits = {
   maxBufferedBytes: 16 * 1024 * 1024,
 };
 
-interface Connection {
-  ws: WebSocket;
+export interface RelaySocket {
+  readonly readyState: number;
+  readonly bufferedAmount: number;
+  send(text: string): void;
+  close(code: number, reason: string): void;
+  terminate(): void;
+  on(event: string, listener: (...args: any[]) => void): unknown;
+  persistConnection?(state: HubConnectionState): void;
+}
+
+export interface HubConnectionState {
   deviceId: string;
   ready: boolean;
   remoteControlEnabled: boolean;
   busy: boolean;
   lastInboundAt: number;
+  helloDeadlineAt: number;
+}
+
+interface Connection extends HubConnectionState {
+  ws: RelaySocket;
   helloTimer: ReturnType<typeof setTimeout> | null;
 }
 
@@ -89,17 +105,19 @@ function sanitizeDeviceInfo(value: unknown): DeviceInfo | null {
 export class Hub {
   private readonly active = new Map<string, Connection>();
   private readonly connections = new Set<Connection>();
-  private readonly idleTimer: ReturnType<typeof setInterval>;
+  private readonly idleTimer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
-    private readonly store: RelayStore,
+    private readonly store: RelayStorePort,
     private readonly ownerUserId: string,
     private readonly now: () => number,
     private readonly logger: RelayLogger,
     private readonly limits: HubLimits = DEFAULT_HUB_LIMITS,
   ) {
-    this.idleTimer = setInterval(() => this.closeIdle(), Math.min(30_000, limits.idleTimeoutMs));
-    this.idleTimer.unref?.();
+    if (!limits.hibernating) {
+      this.idleTimer = setInterval(() => this.closeIdle(), Math.min(30_000, limits.idleTimeoutMs));
+      this.idleTimer.unref?.();
+    }
   }
 
   get onlineCount(): number {
@@ -117,7 +135,7 @@ export class Hub {
   }
 
   /** 接管一条已通过凭证认证的 WebSocket。 */
-  attach(ws: WebSocket, device: StoredDevice): void {
+  attach(ws: RelaySocket, device: StoredDevice, restored?: HubConnectionState): void {
     if (
       this.connections.size >= this.limits.maxConnections ||
       this.connectionCountFor(device.deviceId) >= this.limits.maxConnectionsPerDevice
@@ -132,12 +150,18 @@ export class Hub {
       remoteControlEnabled: false,
       busy: false,
       lastInboundAt: this.now(),
+      helloDeadlineAt: this.now() + this.limits.helloTimeoutMs,
+      ...restored,
       helloTimer: null,
     };
-    conn.helloTimer = setTimeout(() => {
-      if (!conn.ready) ws.close(CLOSE_HELLO_REQUIRED, 'hello required');
-    }, this.limits.helloTimeoutMs);
-    conn.helloTimer.unref?.();
+    if (!this.limits.hibernating && !conn.ready) {
+      conn.helloTimer = setTimeout(() => {
+        if (!conn.ready) ws.close(CLOSE_HELLO_REQUIRED, 'hello required');
+      }, this.limits.helloTimeoutMs);
+      conn.helloTimer.unref?.();
+    }
+    if (conn.ready) this.active.set(conn.deviceId, conn);
+    this.persist(conn);
     this.connections.add(conn);
     ws.on('error', () => undefined);
     ws.on('message', (data, isBinary) => {
@@ -152,6 +176,7 @@ export class Hub {
         return;
       }
       this.handleFrame(conn, buffer);
+      this.persist(conn);
     });
     ws.on('close', () => this.detach(conn));
   }
@@ -166,6 +191,10 @@ export class Hub {
   }
 
   private handleFrame(conn: Connection, buffer: Buffer): void {
+    if (buffer.byteLength > MAX_FRAME_BYTES) {
+      this.sendError(conn, undefined, 'PAYLOAD_TOO_LARGE', 'frame exceeds the size limit');
+      return;
+    }
     let env: Envelope;
     try {
       const parsed = JSON.parse(buffer.toString('utf8')) as unknown;
@@ -176,10 +205,6 @@ export class Hub {
       return;
     }
     const id = typeof env.id === 'string' ? env.id : undefined;
-    if (buffer.byteLength > MAX_FRAME_BYTES) {
-      this.sendError(conn, id, 'PAYLOAD_TOO_LARGE', 'frame exceeds the size limit', env.dst);
-      return;
-    }
     if (env.v !== PROTOCOL_VERSION) {
       conn.ws.close(CLOSE_VERSION_MISMATCH, 'protocol version mismatch');
       return;
@@ -345,10 +370,23 @@ export class Hub {
     for (const conn of [...this.connections]) conn.ws.close(code, reason);
   }
 
-  private closeIdle(): void {
+  /** Restore-only state: no socket, callback or credential enters attachments. */
+  private persist(conn: Connection): void {
+    const { deviceId, ready, remoteControlEnabled, busy, lastInboundAt, helloDeadlineAt } = conn;
+    conn.ws.persistConnection?.({ deviceId, ready, remoteControlEnabled, busy, lastInboundAt, helloDeadlineAt });
+  }
+
+  nextDeadline(): number | null {
+    const deadlines = [...this.connections].map(conn => conn.ready
+      ? conn.lastInboundAt + this.limits.idleTimeoutMs : conn.helloDeadlineAt);
+    return deadlines.length ? Math.min(...deadlines) : null;
+  }
+
+  closeIdle(): void {
     const now = this.now();
     for (const conn of this.connections) {
-      if (now - conn.lastInboundAt > this.limits.idleTimeoutMs) conn.ws.terminate();
+      if (!conn.ready && now >= conn.helloDeadlineAt) conn.ws.close(CLOSE_HELLO_REQUIRED, 'hello required');
+      else if (now - conn.lastInboundAt >= this.limits.idleTimeoutMs) conn.ws.terminate();
     }
   }
 
@@ -366,13 +404,13 @@ export class Hub {
 
   /** 发送失败或接收方积压过多时返回 false;积压的连接用 1013 关闭,由客户端退避重连。 */
   private send(conn: Connection, frame: Envelope): boolean {
-    if (conn.ws.readyState !== WebSocket.OPEN) return false;
+    if (conn.ws.readyState !== 1) return false;
     if (conn.ws.bufferedAmount > this.limits.maxBufferedBytes) {
       this.logger.warn('closing congested connection');
       conn.ws.close(CLOSE_CONGESTED, 'relay congested');
       return false;
     }
-    conn.ws.send(JSON.stringify(frame));
-    return true;
+    try { conn.ws.send(JSON.stringify(frame)); return true; }
+    catch { conn.ws.close(CLOSE_CONGESTED, 'relay congested'); return false; }
   }
 }

@@ -29,7 +29,7 @@ export function deriveAppCapabilities(
   return {
     canUseCindyAccountServices: cloud,
     canUseCindyGateway: cloud,
-    canUseDeviceLink: cloud,
+    canUseDeviceLink: !boundaryPending && (cloud || mode === 'local'),
     canUseSkillHubCloud: cloud,
     canUseCindyOAuthBroker: cloud,
     canUseCindyHeartbeat: cloud,

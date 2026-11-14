@@ -51,5 +51,10 @@
     "failed": "Não foi possível entrar no relay. Tente novamente mais tarde.",
     "saveFailed": "A solicitação foi aprovada, mas não foi possível salvar a credencial do relay neste celular. Crie um novo link de entrada no computador e tente novamente.",
     "credentialUnavailable": "Este celular não tem uma credencial de relay utilizável. Entre novamente ou volte ao relay oficial nas Configurações."
+  },
+  "standalone": {
+    "none": "Não configurado",
+    "hint": "Abra o link de entrada ou escaneie o código QR do computador para conectar seu próprio relay.",
+    "body": "Este celular se conecta aos seus computadores pelo seu relay. Não é necessária uma conta Cindy."
   }
 }

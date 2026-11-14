@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 /**
  * `RelayAuthCrypto` 的 node:crypto 实现(Desktop 主进程、自建中转与测试使用)。
  * 只经子路径 `@cindy/device-link/node-relay-crypto` 导出,Mobile 不会打包它。

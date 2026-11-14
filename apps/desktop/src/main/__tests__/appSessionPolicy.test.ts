@@ -4,11 +4,11 @@ import { deriveAppCapabilities } from '../appCapabilities';
 import { isLocalDbOwnerCurrent, legacyMigrationOwner } from '../appSessionPolicy';
 
 describe('local app-session policy', () => {
-  it('disables every Cindy account capability in local mode', () => {
+  it('allows local device setup while disabling Cindy account services', () => {
     expect(deriveAppCapabilities('local')).toEqual({
       canUseCindyAccountServices: false,
       canUseCindyGateway: false,
-      canUseDeviceLink: false,
+      canUseDeviceLink: true,
       canUseSkillHubCloud: false,
       canUseCindyOAuthBroker: false,
       canUseCindyHeartbeat: false,

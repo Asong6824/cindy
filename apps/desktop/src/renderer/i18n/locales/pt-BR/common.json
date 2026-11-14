@@ -6235,6 +6235,14 @@
           "deviceCount_many": "{{count}} dispositivos",
           "onlineCount_many": "{{count}} online",
           "certificateDays_many": "Expira em {{count}} dias"
+        },
+        "workers": {
+          "title": "URL do Worker da Cloudflare",
+          "hint": "Conecte seu próprio relay no modo local. Primeiro prepare este computador.",
+          "prepare": "Preparar este computador",
+          "publicKeyHint": "Defina esta chave pública como UMEDA_OWNER_PUBLIC_KEY no Worker, implante o relay e conecte-se. Guarde a chave privada deste computador.",
+          "connect": "Inicializar e conectar",
+          "connected": "Conectado ao seu relay"
         }
       },
       "title": "Conexão remota",

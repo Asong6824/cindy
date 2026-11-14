@@ -26,6 +26,7 @@ import {
   parseRelayJoinLink,
   relayPublicKeyOf,
   RelayJoinError,
+  signRelayInitialization,
   submitRelayPairRequest,
   verifyRelayPairProof,
   waitForRelayApproval,
@@ -166,7 +167,8 @@ export function getState(): SelfHostedRelayState {
   if (joinLink && joinLink.expiresAt < Date.now()) joinLink = null;
   const bundled = bundledRelayVersion();
   return {
-    available: authManager.getAuthState().isAuthenticated && secureStorageAvailable(),
+    available: getActiveAppSession().mode !== 'signed-out' && !isAppSessionBoundaryPending() && secureStorageAvailable(),
+    cloud: config.cloud ? { baseUrl: config.cloud.baseUrl, ownerPublicKey: config.cloud.ownerPublicKey, connected: relay?.relayId === config.cloud.relayId } : null,
     mode: relay ? 'self-hosted' : 'official',
     relay: relay && origin ? { name: relay.name, baseUrl: relay.baseUrl, role: relay.role, origin } : null,
     issue: issue?.kind === 'device-removed' ? 'removed' : issue?.kind === 'auth-failed' ? 'unauthorized' : null,
@@ -218,7 +220,7 @@ function ownerInitArgs(relayId: string, secrets: RelaySecrets, name: string) {
   return {
     name,
     relayId,
-    ownerUserId: authManager.getCurrentUserId() ?? '',
+    ownerUserId: getActiveAppSession().dataOwnerId ?? '',
     ownerDeviceId,
     ownerDeviceName: deviceName().slice(0, 64) || 'Cindy',
     ownerCredentialHash: hashSecret(secrets.credential),
@@ -260,7 +262,7 @@ async function prepareHostData(dataDir: string, config: RelayConfig): Promise<st
   const stateFile = `${dataDir}/relay-state.json`;
   const existingId = config.host.relayId;
   if (existingId && readRelaySecrets(existingId) && fs.existsSync(stateFile)) return existingId;
-  if (!authManager.getCurrentUserId()) throw new Error('NOT_SIGNED_IN');
+  if (!getActiveAppSession().dataOwnerId) throw new Error('NOT_SIGNED_IN');
   fs.rmSync(dataDir, { recursive: true, force: true });
   if (existingId) {
     const wasActive = readRelayConfig().active?.relayId === existingId;
@@ -507,7 +509,7 @@ type CommandResult = {
 
 function requireReady(): SelfHostedRelayErrorCode | null {
   // 账号数据作用域提交之前不能读写中转配置(否则会落进临时命名空间)。
-  if (isAppSessionBoundaryPending() || !authManager.getAuthState().isAuthenticated || !getActiveAppSession().dataOwnerId) return 'NOT_SIGNED_IN';
+  if (isAppSessionBoundaryPending() || getActiveAppSession().mode === 'signed-out' || !getActiveAppSession().dataOwnerId) return 'NOT_SIGNED_IN';
   if (!secureStorageAvailable()) return 'SECURE_STORAGE_UNAVAILABLE';
   return null;
 }
@@ -623,7 +625,7 @@ function startJoin(rawLink: string): CommandResult {
   const abort = new AbortController();
   joinAbort = abort;
   join = { status: 'connecting' };
-  const accountUserId = authManager.getCurrentUserId();
+  const accountUserId = getActiveAppSession().dataOwnerId;
   const deviceId = authManager.getDeviceId();
   void (async () => {
     try {
@@ -652,7 +654,7 @@ function startJoin(rawLink: string): CommandResult {
       const result = await waitForRelayApproval(relayFetch, link, request, { signal: abort.signal });
       assertOwner();
       // 等待期间换了账号:凭证属于旧账号,不能写进新账号的配置。
-      if (abort.signal.aborted || authManager.getCurrentUserId() !== accountUserId) return;
+      if (abort.signal.aborted || getActiveAppSession().dataOwnerId !== accountUserId) return;
       // 证书必须出自链接里的主人、发给本机这把公钥;否则中转可能被人替换,不加入。
       acceptRelayDeviceCert(crypto, link, { relayId: info.relayId, deviceId, publicKey: identity.publicKey, cert: result.cert });
       // 之前加入的中转先退出(不能用 leaveCurrent:它会取消正在进行的这次加入)。
@@ -979,10 +981,66 @@ async function deploymentStatus(relayId: string): Promise<CommandResult> {
   return { state: getState(), deploymentStatus: status };
 }
 
+/** Prepare locally before Cloudflare deployment; only the public key leaves this device. */
+function prepareCloud(command: Extract<SelfHostedRelayCommand, { type: 'prepare-cloud' }>): CommandResult {
+  const notReady = requireReady();
+  if (notReady) return { state: getState(), error: notReady };
+  if (getActiveAppSession().mode !== 'local') return { state: getState(), error: 'NOT_SIGNED_IN' };
+  const config = readRelayConfig();
+  if (config.cloud?.baseUrl === command.baseUrl && readRelaySecrets(config.cloud.relayId)) return { state: getState() };
+  const relayId = randomUUID();
+  const secrets = createOwnerSecrets(relayId);
+  writeRelayConfig({ ...config, cloud: {
+    relayId, name: command.name, baseUrl: command.baseUrl, role: 'owner', origin: 'cloudflare',
+    deviceId: authManager.getDeviceId(), ownerPublicKey: relayPublicKeyOf(crypto, secrets.seed)!,
+  } });
+  return { state: getState() };
+}
+
+async function connectCloud(): Promise<CommandResult> {
+  const assertOwner = captureOwner();
+  const notReady = requireReady();
+  if (notReady) return { state: getState(), error: notReady };
+  if (getActiveAppSession().mode !== 'local') return { state: getState(), error: 'NOT_SIGNED_IN' };
+  const cloud = readRelayConfig().cloud;
+  const secrets = cloud && readRelaySecrets(cloud.relayId);
+  if (!cloud || !secrets) return { state: getState(), error: 'NO_DEPLOYMENT' };
+  const input = ownerInitArgs(cloud.relayId, secrets, cloud.name);
+  try {
+    const response = await fetch(`${cloud.baseUrl}/api/device-link/relay/initialize`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...input, proof: signRelayInitialization(crypto, secrets.seed, input) }),
+      signal: AbortSignal.timeout(15_000), redirect: 'error',
+    });
+    assertOwner();
+    if (!response.ok) return { state: getState(), error: 'NOT_REACHABLE' };
+    const info = await fetchRelayInfo(relayFetch, cloud.baseUrl);
+    assertOwner();
+    if (info.relayId !== cloud.relayId) return { state: getState(), error: 'RELAY_MISMATCH' };
+    await leaveCurrent();
+    assertOwner();
+    await stopHost(false);
+    assertOwner();
+    const config = readRelayConfig();
+    writeRelayConfig({ ...config, host: { ...config.host, enabled: false }, active: cloud });
+    restartDeviceLinkForRelayChange();
+    refreshRelayCertificatesSoon();
+    return { state: getState() };
+  } catch (error) {
+    assertOwner();
+    if (error instanceof RelayOperationExpired) throw error;
+    return { state: getState(), error: 'NOT_REACHABLE' };
+  }
+}
+
 async function execute(command: SelfHostedRelayCommand): Promise<CommandResult> {
   switch (command.type) {
     case 'state':
       return { state: getState() };
+    case 'prepare-cloud':
+      return prepareCloud(command);
+    case 'connect-cloud':
+      return connectCloud();
     case 'enable-host':
       return enableHost(command);
     case 'disable-host':
@@ -1061,7 +1119,7 @@ export function registerSelfHostedRelayIpc(): void {
   const sync = () => {
     if (retryTimer) clearTimeout(retryTimer);
     retryTimer = null;
-    const authenticated = authManager.getAuthState().isAuthenticated;
+    const authenticated = getActiveAppSession().mode !== 'signed-out';
     const ownerId = getActiveAppSession().dataOwnerId;
     if (authenticated && !ownerId && retries++ < 30) {
       retrySoon();
@@ -1079,7 +1137,7 @@ export function registerSelfHostedRelayIpc(): void {
       const assertOwner = captureOwner();
       void stopping.then(() => {
         assertOwner();
-        return ensureHost();
+        return ensureHost().then(() => { assertOwner(); if (getActiveAppSession().mode === 'local') restartDeviceLinkForRelayChange(); });
       }).then(() => { assertOwner(); emitChanged(); }).catch(reportFailure);
       return;
     }
@@ -1097,7 +1155,7 @@ export function registerSelfHostedRelayIpc(): void {
     stopping = stopHost(false);
     void stopping.then(() => {
       assertOwner();
-      return key && !deferred ? ensureHost() : undefined;
+      return key && !deferred ? ensureHost().then(() => { assertOwner(); if (getActiveAppSession().mode === 'local') restartDeviceLinkForRelayChange(); }) : undefined;
     }).then(() => { assertOwner(); emitChanged(); }).catch(reportFailure);
   };
   sync();

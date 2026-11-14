@@ -34,6 +34,9 @@ import * as QRCode from 'qrcode';
 
 import { Button } from '@/components/ui/button';
 import { useOptionalConfirmDialog } from '@/components/ui/confirm-dialog-provider';
+import { useAuth } from '@/contexts/AuthContext';
+import { FormField } from '@/components/ui/form-field';
+import { remoteControlSettings } from './RemoteControlSection.settings-search';
 import { Input } from '@/components/ui/input';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Select } from '@/components/ui/select';
@@ -1595,10 +1598,40 @@ function ServerDetails({
  * 正在用的那条在自己那一行里展开详情(服务器中转的设备数、证书、添加设备;这台电脑当中转的加入链接)。
  * 部署到服务器的中转每台一行,各自可以切换、改名、移除;随时可以再部署到另一台服务器。
  */
+function WorkersRelaySetup({ state, controller }: { state: SelfHostedRelayState; controller: SelfHostedRelayController }) {
+  const { t } = useTranslation();
+  const [url, setUrl] = useState(state.cloud?.baseUrl ?? '');
+  const submitting = useRef(false);
+  const definition = remoteControlSettings.cloudRelay;
+  const k = 'settings.remoteControl.relay.workers';
+  const prepared = state.cloud?.baseUrl === url.trim().replace(/\/$/, '');
+  const submit = async () => {
+    if (submitting.current) return;
+    submitting.current = true;
+    try { await controller.run(prepared ? { type: 'connect-cloud' } : { type: 'prepare-cloud', baseUrl: url.trim(), name: 'Umeda' }); }
+    finally { submitting.current = false; }
+  };
+  return <section id={definition.targetId} className="flex flex-col gap-3 rounded-xl bg-[var(--settings-input-bg)] p-4">
+    <FormField label={t(definition.titleKey)} hint={t(definition.descriptionKey)}>
+      {(control) => <Input {...control} data-setting-id={definition.id} value={url} onChange={setUrl}
+        size="sm" mono disabled={controller.busy} placeholder="https://…workers.dev" />}
+    </FormField>
+    {prepared && state.cloud ? <>
+      <Hint>{t(`${k}.publicKeyHint`)}</Hint>
+      <code className="select-text break-all text-12 text-[var(--text-primary)]">UMEDA_OWNER_PUBLIC_KEY={state.cloud.ownerPublicKey}</code>
+    </> : null}
+    <div><Button size="sm" disabled={controller.busy || !url.trim()} onClick={() => void submit()}>
+      {t(prepared ? `${k}.connect` : `${k}.prepare`)}
+    </Button></div>
+    {state.cloud?.connected ? <Hint>{t(`${k}.connected`)}</Hint> : null}
+  </section>;
+}
+
 export function RelayServicePanel({ controller }: { controller: SelfHostedRelayController }) {
   const { t } = useTranslation();
   const confirmDialog = useOptionalConfirmDialog();
   const confirm = useConfirm();
+  const { mode } = useAuth();
   const [form, setForm] = useState<'none' | 'host' | 'join'>('none');
   const [deployOpen, setDeployOpen] = useState(false);
   const [deployInitial, setDeployInitial] = useState<DeployTarget | null>(null);
@@ -1639,7 +1672,7 @@ export function RelayServicePanel({ controller }: { controller: SelfHostedRelayC
   const relay = state.relay;
   const isHost = relay?.origin === 'host';
   const isServer = relay?.origin === 'server';
-  const isMember = relay?.origin === 'join';
+  const isMember = relay?.role === 'member';
   const confirmKey = isHost ? 'owner' : isServer ? 'server' : 'member';
   const busy = controller.busy || job?.status === 'running';
 
@@ -1813,16 +1846,23 @@ export function RelayServicePanel({ controller }: { controller: SelfHostedRelayC
 
   return (
     <div className="flex flex-col gap-4">
+      {mode === 'local' ? <WorkersRelaySetup state={state} controller={controller} /> : null}
       <div className="flex flex-col gap-2">
         <ul className="flex flex-col divide-y divide-[var(--border-default)] overflow-hidden rounded-xl bg-[var(--settings-input-bg)]">
-          <RouteRow
+          {mode === 'cloud' ? <RouteRow
             selected={!relay}
             icon={<Cloud size={15} />}
             title={t(`${k}.summary.official`)}
             tag={t(`${ROUTE}.defaultTag`)}
             hint={t(`${ROUTE}.officialHint`)}
             side={<RouteSide switchAction={relay ? switchAction(t(`${k}.summary.official`), () => void switchToOfficial()) : null} />}
-          />
+          /> : null}
+          {relay?.origin === 'cloudflare' ? (
+            <RouteRow selected icon={<Cloud size={15} />} title={relay.name}
+              hint={<span className="font-mono">{relay.baseUrl}</span>} side={<RouteSide />}>
+              <AddDevice state={state} controller={controller} bare />
+            </RouteRow>
+          ) : null}
           {state.deployments.map(serverRow)}
           {pendingDeploy ? (
             <RouteRow

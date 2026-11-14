@@ -1,3 +1,4 @@
+import { UMEDA_STANDALONE } from '@/config/standalone';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { useUpdates } from 'expo-updates';
@@ -218,7 +219,7 @@ export default function SettingsScreen() {
   // 而热更不改原生包,若读 expoConfig 会在热更后回退成打热更时主仓 app.json 的旧值。
   // APP_BINARY_VERSION 优先取原生层、热更后不漂移(与 mobileTapdb / env 上报同口径)。
   const appVersion = APP_BINARY_VERSION || '0.0.0';
-  const updatesEnabled = Updates.isEnabled;
+  const updatesEnabled = !UMEDA_STANDALONE && Updates.isEnabled;
   // 当前运行的 OTA bundle 信息:检查更新时判断应急启动;版本细节展示在二级页「开发者」。
   const { currentlyRunning } = useUpdates();
   const updateChannel = useUpdateChannelGate(IS_OTA_SELFHOST);
@@ -229,7 +230,7 @@ export default function SettingsScreen() {
   });
   const playManagedUpdates = Platform.OS === 'android' && isGooglePlayInstallation();
   const bundleCheckEnabled = shouldCheckBundleUpdate({
-    isSelfHosted: IS_OTA_SELFHOST,
+    isSelfHosted: !UMEDA_STANDALONE && IS_OTA_SELFHOST,
     isReviewMode: REVIEW_MODE,
     isTestFlightBuild: IS_TESTFLIGHT_BUILD,
     isGooglePlayInstallation: playManagedUpdates,
@@ -708,7 +709,7 @@ export default function SettingsScreen() {
         <SettingsGroup
           footer={selfHostedRelay
             ? t('relay.settings.selfHostedHint', { address: selfHostedRelay.baseUrl })
-            : t('relay.settings.officialHint')}
+            : t(auth.isLocalMode ? 'relay.standalone.hint' : 'relay.settings.officialHint')}
           messages={[
             relayIssueMessage ? { text: relayIssueMessage, testID: 'settings.relay.issue' } : null,
             relayMessage ? { text: relayMessage, testID: 'settings.relay.message' } : null,
@@ -720,9 +721,9 @@ export default function SettingsScreen() {
             key="relay-current"
             label={t('relay.settings.currentLabel')}
             testID="settings.relay.current"
-            value={selfHostedRelay ? selfHostedRelay.name : t('relay.settings.official')}
+            value={selfHostedRelay ? selfHostedRelay.name : t(auth.isLocalMode ? 'relay.standalone.none' : 'relay.settings.official')}
           />
-          {selfHostedRelay ? (
+          {selfHostedRelay && !auth.isLocalMode ? (
             <ActionInfoRow
               accessibilityLabel={t('relay.settings.switchToOfficial')}
               chevron={false}

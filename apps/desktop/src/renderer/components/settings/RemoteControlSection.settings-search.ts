@@ -5,7 +5,7 @@ import { defineSettings, type SettingsSearchModule } from './settingsSearchTypes
 export const remoteControlSettings = defineSettings({
   relay: {
     id: 'remoteControl.relay',
-    isVisible: ({ mode }) => mode === 'cloud',
+    isVisible: ({ mode }) => mode === 'cloud' || mode === 'local',
     tab: 'remote-control',
     targetId: 'settings-search-target-remote-relay',
     titleKey: 'settings.remoteControl.relay.route.title',
@@ -20,9 +20,19 @@ export const remoteControlSettings = defineSettings({
       '连接线路',
     ],
   },
+  cloudRelay: {
+    id: 'remoteControl.cloudRelay',
+    isVisible: ({ mode }) => mode === 'local',
+    tab: 'remote-control',
+    targetId: 'settings-search-target-cloud-relay',
+    titleKey: 'settings.remoteControl.relay.workers.title',
+    descriptionKey: 'settings.remoteControl.relay.workers.hint',
+    sectionKey: 'settings.sections.remoteControl',
+    aliases: ['Cloudflare', 'Workers', 'Umeda'],
+  },
   devices: {
     id: 'remoteControl.devices',
-    isVisible: ({ mode }) => mode === 'cloud',
+    isVisible: ({ mode }) => mode === 'cloud' || mode === 'local',
     tab: 'remote-control',
     targetId: 'settings-search-target-remote-devices',
     titleKey: 'settings.remoteControl.sections.myDevices',

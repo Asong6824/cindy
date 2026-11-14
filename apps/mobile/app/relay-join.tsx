@@ -132,7 +132,7 @@ export default function RelayJoinScreen() {
     }
   }, [restartFlow]);
 
-  const signedIn = auth.isAuthenticated;
+  const signedIn = auth.isAuthenticated || auth.isLocalMode;
   useEffect(() => {
     if (link && signedIn && phase.kind === 'idle') void probe(link);
   }, [link, phase.kind, probe, signedIn]);
@@ -262,7 +262,7 @@ export default function RelayJoinScreen() {
     content = (
       <>
         <RelayIdentity info={phase.info} baseUrl={link.baseUrl} />
-        <Text style={styles.body}>{t('relay.join.body')}</Text>
+        <Text style={styles.body}>{t(auth.isLocalMode ? 'relay.standalone.body' : 'relay.join.body')}</Text>
         {switchNote ? <Text style={styles.note}>{switchNote}</Text> : null}
         <View style={styles.actions}>
           <MainWindowActionButton
