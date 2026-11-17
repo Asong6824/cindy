@@ -9,6 +9,18 @@ import { reconcileCommittedComposerDraft } from './composerDraftStore';
 import { withAsyncStorageFullRecovery } from './asyncStorageFull';
 import { migrateLegacySessionMessageCache } from './mobileSessionMessageCache';
 import { cancelledCreationDraft } from './cancelledCreationDraft';
+import type { AuthContextValue } from '@/auth/AuthContext';
+
+/** Data ownership is independent of access to authenticated Cindy account services. */
+export function mobileOutboxOwnerKey(
+  auth: Pick<AuthContextValue, 'isAuthenticated' | 'isLocalMode' | 'user'>,
+  owner = getMobileAuthOwner(),
+): string {
+  return (auth.isAuthenticated || auth.isLocalMode === true)
+    && auth.user?.id?.trim() === owner.accountId
+    && isMobileAuthOwnerCurrent(owner)
+    ? owner.accountKey : '';
+}
 
 const outboxStorage = withAsyncStorageFullRecovery(AsyncStorage, migrateLegacySessionMessageCache);
 export const mobileDurableOutbox = createDurableOutbox(outboxStorage, async (record, guard) => {

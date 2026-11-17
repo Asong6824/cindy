@@ -50,6 +50,7 @@ vi.mock('@/lib/authService', () => ({ createAuthService: () => svc.service }));
 vi.mock('@/lib/makerChatStore', () => ({
   cancelRemoteOptimisticSendsForDataOwnerBoundary: vi.fn(),
   setCurrentUserName: vi.fn(),
+  reconcileSessionsAfterDataOwnerRollback: vi.fn(async () => {}),
 }));
 vi.mock('@/lib/sessionsStore', () => ({ sessionsStore: { reset: vi.fn() } }));
 vi.mock('@/features/cc-agent/hooks/useWorkers', () => ({ clearWorkersCache: vi.fn() }));
@@ -456,10 +457,10 @@ describe('LoginHandoff 时序(fake-timer)', () => {
 
 /* ── 冷启动集成(real AuthProvider + LoginBrandStage + SplashScreen + LoginPage) ── */
 
-function HandoffHost({ children }: { children: React.ReactNode }) {
+function HandoffHost({ children, legacyLogin = false }: { children: React.ReactNode; legacyLogin?: boolean }) {
   const { startupTarget } = useAppShellCover();
   return (
-    <LoginHandoffProvider target={startupTarget}>
+    <LoginHandoffProvider target={legacyLogin && startupTarget === 'startup-error' ? 'login' : startupTarget}>
       {children}
     </LoginHandoffProvider>
   );
@@ -485,14 +486,14 @@ function AppGate() {
   ) : null;
 }
 
-function renderColdStart() {
+function renderColdStart(legacyLogin = false) {
   return render(
     <AuthProvider>
       <AppShellCoverProvider>
-      <HandoffHost>
+      <HandoffHost legacyLogin={legacyLogin}>
         <LoginBrandStage />
         <SplashScreen />
-        <GuestGate />
+        {legacyLogin && <GuestGate />}
         <AppGate />
         <Probe />
       </HandoffHost>
@@ -516,10 +517,10 @@ function loadBrandAssets() {
 describe('冷启动集成(resolved snapshot,禁 mock-reject)', () => {
   // unit：真实 AuthProvider → AppShellCover → LocalDbGate / Splash / 品牌层。
   // 认证恢复卸载面板后，旧动画不能遮住当前账号的主界面或数据库恢复页。
-  it.each(['ready', 'fatal'] as const)('finishes recovery during login animation after the current database becomes %s', async (outcome) => {
+  it.each(['ready', 'fatal'] as const)('finishes personal startup after the current database becomes %s', async (outcome) => {
     svc.service.initialize.mockResolvedValue({
       isAuthenticated: false, canEnterApp: false, mode: 'signed-out',
-      dataOwnerId: null, ownerGeneration: 0, user: null, deviceId: 'device',
+      dataOwnerId: null, ownerGeneration: 0, ownerBoundaryPending: true, user: null, deviceId: 'device',
     });
     let finishDb!: (result: Awaited<ReturnType<ElectronAPI['localDb']['ensureReady']>>) => void;
     vi.mocked(window.electronAPI.localDb.ensureReady).mockReturnValueOnce(new Promise((resolve) => { finishDb = resolve; }));
@@ -527,11 +528,11 @@ describe('冷启动集成(resolved snapshot,禁 mock-reject)', () => {
     await flush();
     loadBrandAssets();
     await act(async () => { vi.advanceTimersByTime(3_000); });
-    expect(probe.current!.phase).toBe('settle');
+    expect(probe.current!.phase).toBe('boot');
     await act(async () => {
       svc.authListener!({
-        isAuthenticated: true, canEnterApp: true, mode: 'cloud',
-        dataOwnerId: 'owner', ownerGeneration: 1, user: { id: 'owner', name: 'Owner' }, deviceId: 'device',
+        isAuthenticated: false, canEnterApp: true, mode: 'local',
+        dataOwnerId: 'local-v1', ownerGeneration: 1, user: null, deviceId: 'device',
       });
     });
     expect(screen.queryByTestId('login-panel-stage-root')).toBeNull();
@@ -558,7 +559,7 @@ describe('冷启动集成(resolved snapshot,禁 mock-reject)', () => {
       deviceId: 'test-device',
       user: null,
     });
-    renderColdStart();
+    renderColdStart(true);
     await flush();
 
     expect(probe.current!.panelBottomReserve).toBe(0);
@@ -582,7 +583,7 @@ describe('冷启动集成(resolved snapshot,禁 mock-reject)', () => {
       deviceId: 'test-device',
       user: null,
     });
-    renderColdStart();
+    renderColdStart(true);
     await flush();
 
     // ── 冷启动品牌屏(demo desktop-splash 相):品牌可见、Slogan 未出现、
@@ -735,7 +736,7 @@ describe('冷启动集成(resolved snapshot,禁 mock-reject)', () => {
       deviceId: 'test-device',
       user: { id: 'u1', name: 'Tester' },
     });
-    renderColdStart();
+    renderColdStart(true);
     await flush();
 
     // 走完 authenticated 冷启动:brand-exit 淡出 → done,overlay 卸载

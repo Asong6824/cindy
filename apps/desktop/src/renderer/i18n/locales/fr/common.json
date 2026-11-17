@@ -1170,7 +1170,7 @@
     "closePermissionGuide": "Fermer",
     "title": "Bureau à distance",
     "allow": "Autoriser le bureau à distance",
-    "allowHint": "Autorisez vos appareils connectés à voir et utiliser toutes les apps de cet ordinateur. Activez aussi le contrôle de l'appareil ci-dessus.",
+    "allowHint": "Autorisez les appareils connectés à voir et contrôler toutes les applications de cet ordinateur. Le contrôle des appareils ci-dessus doit aussi être activé.",
     "permissionHint": "Sur l'ordinateur, autorisez l'enregistrement de l'écran et l'accessibilité dans les réglages système, puis reconnectez-vous.",
     "inputUnsupported": "L'environnement de bureau actuel de cet ordinateur ne prend pas en charge le contrôle à distance du clavier et de la souris dans Cindy.",
     "controlUnavailable": "L'ordinateur distant ne peut pas recevoir de saisie. Vérifiez ses autorisations de contrôle et sa connexion, puis reconnectez-vous.",
@@ -6238,15 +6238,15 @@
         },
         "workers": {
           "title": "URL du Worker Cloudflare",
-          "hint": "Connectez votre relais en mode local. Commencez par préparer cet ordinateur.",
+          "hint": "Connectez-vous directement à votre relais en mode local.",
           "prepare": "Préparer cet ordinateur",
           "publicKeyHint": "Définissez cette clé publique comme UMEDA_OWNER_PUBLIC_KEY dans le Worker, déployez le relais, puis connectez-vous. Conservez la clé privée de cet ordinateur.",
-          "connect": "Initialiser et connecter",
+          "connect": "Connecter",
           "connected": "Connecté à votre relais"
         }
       },
       "title": "Connexion à distance",
-      "description": "Contrôlez à distance vos autres appareils connectés, ou connectez-vous à un hôte distant via SSH.",
+      "description": "Contrôlez les appareils à distance ou connectez-vous aux hôtes via SSH.",
       "accessRevokedByPeer": "Accès révoqué : l'autre appareil doit le rétablir dans ses paramètres",
       "deviceControlToggleAria": "Activer/désactiver le contrôle de {{name}}",
       "myDevices": {
@@ -6578,8 +6578,8 @@
     "devices": {
       "title": "Liaison d'appareils",
       "description": "Les appareils connectés avec le même compte Feishu peuvent se détecter mutuellement. Une fois « Autoriser le contrôle » activé, vos autres appareils peuvent contrôler à distance {{appName}} sur cette machine.",
-      "allowControl": "Autoriser les appareils du même compte à contrôler cette machine",
-      "allowControlHint": "Une fois activé, les autres appareils connectés avec le même compte peuvent contrôler cette machine sans approbation à chaque connexion. Un indicateur visible s'affiche pendant le contrôle, et vous pouvez vous déconnecter à tout moment.",
+      "allowControl": "Autoriser les appareils à contrôler cet ordinateur",
+      "allowControlHint": "Les appareils connectés au relais actuel peuvent contrôler cet ordinateur lorsque cette option est activée. Vous pouvez la désactiver à tout moment.",
       "keepAwake": "Empêcher la mise en veille",
       "keepAwakeHint": "Une fois activé, cette machine ne se met pas en veille, afin que les Agents en arrière-plan et les tâches planifiées continuent de s'exécuter (vous pouvez toujours éteindre l'écran ou le verrouiller).",
       "linkStatus": {

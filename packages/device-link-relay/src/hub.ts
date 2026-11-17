@@ -23,7 +23,15 @@ import {
   type RelayErrorCode,
 } from '@cindy/device-link-protocol';
 import type { RelayLogger } from './logger';
-import type { RelayStorePort, StoredDevice } from './stateModel';
+import type { StoredDevice } from './stateModel';
+
+/** Routing only needs public presence metadata, not authentication material. */
+export type HubDevice = Omit<StoredDevice, 'credentialHash' | 'cert'>;
+export interface HubStore {
+  get(deviceId: string): HubDevice | undefined;
+  update(deviceId: string, patch: Partial<Pick<HubDevice,
+    'reportedName' | 'customName' | 'platform' | 'appVersion' | 'deviceInfo' | 'lastSeenAt'>>): HubDevice | undefined;
+}
 
 export const CLOSE_VERSION_MISMATCH = 4400;
 export const CLOSE_HELLO_REQUIRED = 4401;
@@ -76,7 +84,7 @@ interface Connection extends HubConnectionState {
   helloTimer: ReturnType<typeof setTimeout> | null;
 }
 
-function displayName(device: StoredDevice): string {
+function displayName(device: HubDevice): string {
   return device.customName ?? device.reportedName;
 }
 
@@ -108,7 +116,7 @@ export class Hub {
   private readonly idleTimer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
-    private readonly store: RelayStorePort,
+    private readonly store: HubStore,
     private readonly ownerUserId: string,
     private readonly now: () => number,
     private readonly logger: RelayLogger,
@@ -135,7 +143,7 @@ export class Hub {
   }
 
   /** 接管一条已通过凭证认证的 WebSocket。 */
-  attach(ws: RelaySocket, device: StoredDevice, restored?: HubConnectionState): void {
+  attach(ws: RelaySocket, device: HubDevice, restored?: HubConnectionState): void {
     if (
       this.connections.size >= this.limits.maxConnections ||
       this.connectionCountFor(device.deviceId) >= this.limits.maxConnectionsPerDevice
@@ -315,7 +323,7 @@ export class Hub {
     }
   }
 
-  presenceOf(device: StoredDevice): PresenceSnapshot {
+  presenceOf(device: HubDevice): PresenceSnapshot {
     const conn = this.active.get(device.deviceId);
     return {
       deviceId: device.deviceId,
@@ -332,7 +340,7 @@ export class Hub {
   }
 
   /** REST `/devices` 的设备视图(与官方 `DeviceView` 同形)。 */
-  deviceView(device: StoredDevice, selfId: string) {
+  deviceView(device: HubDevice, selfId: string) {
     const conn = this.active.get(device.deviceId);
     const lastSeenAt = conn ? this.now() : device.lastSeenAt;
     return {
@@ -351,12 +359,12 @@ export class Hub {
   }
 
   /** 设备档案变化(改名)后通知所有在线设备。 */
-  announce(device: StoredDevice): void {
+  announce(device: HubDevice): void {
     this.broadcast(this.presenceOf(device));
   }
 
   /** 移除设备:断开它的所有连接,并广播离线。 */
-  disconnectDevice(device: StoredDevice, code: number, reason: string): void {
+  disconnectDevice(device: HubDevice, code: number, reason: string): void {
     for (const conn of [...this.connections]) {
       if (conn.deviceId !== device.deviceId) continue;
       if (this.active.get(conn.deviceId) === conn) this.active.delete(conn.deviceId);

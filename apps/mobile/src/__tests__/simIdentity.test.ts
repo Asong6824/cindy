@@ -39,6 +39,23 @@ describe('shared simulator identity', () => {
 
 
 describe('shared simulator environment', () => {
+  // Unit: the same source/region with the standalone shell flag must refuse an
+  // account-mode Metro. Dotenv coverage alone missed shell-only build switches.
+  it('refuses to reuse an account Metro for a standalone build', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cindy-sim-env-'));
+    try {
+      const env = { NODE_ENV: 'test' as const, EXPO_PUBLIC_UMEDA_MODE: '0' };
+      const regular = readSimEnvironment(dir, {}, env);
+      const standalone = readSimEnvironment(dir, {}, { ...env, EXPO_PUBLIC_UMEDA_MODE: '1' });
+      expect(resolveSimMetroHandoff({ ...fresh,
+        currentEnvFingerprint: standalone.envFingerprint,
+        runningEnvFingerprint: regular.envFingerprint,
+      }).action).toBe('refuse');
+      expect(readSimEnvironment(dir, {}, { ...env, EXPO_PUBLIC_UMEDA_MODE: '0' }).envFingerprint)
+        .toBe(regular.envFingerprint);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
   it('reads missing files without creating them and notices changed dotenv inputs', () => {
     const dir = mkdtempSync(join(tmpdir(), 'cindy-sim-env-'));
     try {

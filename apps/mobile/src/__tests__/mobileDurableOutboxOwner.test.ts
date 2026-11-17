@@ -11,7 +11,8 @@ vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
 } }));
 vi.mock('../session/durableOutboxFiles', () => ({ durableOutboxUploadUri: vi.fn(), removeOutboxFiles: mocks.removeFiles }));
 vi.mock('../session/mobileAttachmentUpload', () => ({ discardMobileUploadedAttachment: mocks.discard }));
-import { cleanupOutboxResources, discardOutboxUploads, getCurrentMobileOutboxRecords, mobileDurableOutbox, persistCancelledCreationDraft, suspendCreationDraftForCleanup } from '../session/mobileDurableOutbox';
+import { cleanupOutboxResources, discardOutboxUploads, getCurrentMobileOutboxRecords, mobileDurableOutbox, mobileOutboxOwnerKey, persistCancelledCreationDraft, suspendCreationDraftForCleanup } from '../session/mobileDurableOutbox';
+import type { MobileUser } from '../auth/AuthContext';
 
 function record(): DurableOutboxRecord {
   return { version: 1, accountId: getMobileAuthOwner().accountKey, deviceId: 'mac', createdAt: 1,
@@ -31,6 +32,29 @@ beforeEach(async () => {
   mocks.removeFiles.mockReset();
   setMobileAuthOwner('alice', 'global');
   await mobileDurableOutbox.activate(getMobileAuthOwner().accountKey);
+});
+
+// Unit regression: the bridge activated an empty ledger for standalone users,
+// so queued messages never reached delivery. Existing cases only used cloud owners.
+// Activate the production ledger using the bridge's actual owner selection and
+// verify persisted messages survive; stale generations and logged-out owners stay fenced.
+it('restores the standalone outbox without granting account authentication', async () => {
+  setMobileAuthOwner('local-v1', 'global');
+  const owner = getMobileAuthOwner();
+  const auth = { isAuthenticated: false, isLocalMode: true,
+    user: { id: 'local-v1' } as MobileUser };
+  await mobileDurableOutbox.activate(owner.accountKey);
+  const queued = record();
+  await mobileDurableOutbox.add(queued);
+  await mobileDurableOutbox.activate('');
+  await mobileDurableOutbox.activate(mobileOutboxOwnerKey(auth, owner));
+  expect(getCurrentMobileOutboxRecords()).toEqual([queued]);
+  expect(mobileOutboxOwnerKey({ ...auth, isLocalMode: false }, owner)).toBe('');
+  setMobileAuthOwner('alice', 'global');
+  expect(mobileOutboxOwnerKey(auth)).toBe('');
+  expect(mobileOutboxOwnerKey(auth, owner)).toBe('');
+  expect(mobileOutboxOwnerKey({ isAuthenticated: true, user: { id: 'alice' } as MobileUser }))
+    .toBe(getMobileAuthOwner().accountKey);
 });
 
 it('persists cancellation for only the matching device and restores it after a cold activation', async () => {

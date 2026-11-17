@@ -52,6 +52,13 @@ function setup(mode: 'cloud' | 'local' | 'signed-out', passive = false) {
     repairStableCloudOwnerDataReservations: vi.fn(async () => true),
     migrateLocalProviderBindingsAfterCloudCommit: vi.fn(async () => {}),
     commitCloudAppSession: vi.fn(),
+    commitActiveAppSession: vi.fn((nextMode: 'local' | 'signed-out') => {
+      state.mode = nextMode;
+      state.dataOwnerId = nextMode === 'local' ? 'owner' : null;
+      state.canEnterApp = nextMode === 'local';
+    }),
+    notifyRenderer: vi.fn(),
+    notifyAuthListeners: vi.fn(),
     withAccountFreeOwnerCommit: commit,
   };
   const compiled = transpileModule(
@@ -67,7 +74,7 @@ function setup(mode: 'cloud' | 'local' | 'signed-out', passive = false) {
     { compilerOptions: { target: ScriptTarget.ES2022 } },
   ).outputText;
   const entrypoints = new Function(...Object.keys(deps), compiled)(...Object.values(deps)) as {
-    initialize(): Promise<unknown>;
+    initialize(options?: { localOnly?: boolean }): Promise<unknown>;
     recoverAccountFreeOwnerAtStartup(mode: string, reason: string): Promise<void>;
     requestStableOwnerPostCommit(reason: string): void;
   };
@@ -85,6 +92,20 @@ function setup(mode: 'cloud' | 'local' | 'signed-out', passive = false) {
 }
 
 describe('authentication does not wait for optional plugin provisioning', () => {
+  // Personal desktop startup must select its local owner before inspecting
+  // saved account credentials or running the cloud refresh path. Unit tier;
+  // the existing cloud recovery cases did not exercise this startup option.
+  it.each(['cloud', 'signed-out', 'local'] as const)('starts a personal desktop locally from %s', async mode => {
+    const run = setup(mode);
+    try {
+      await expect(run.initialize({ localOnly: true })).resolves.toMatchObject({
+        mode: 'local', dataOwnerId: 'owner', canEnterApp: true,
+      });
+      expect(run.deps.notifyRenderer).toHaveBeenCalledOnce();
+      expect(run.deps.commitCloudAppSession).not.toHaveBeenCalled();
+    } finally { run.finish(); }
+  });
+
   it('returns through the real startup IPC while the owner task remains pending', async () => {
     const run = setup('cloud');
     const bootstrap = readFileSync(new URL('../bootstrap-electron.ts', import.meta.url), 'utf8');

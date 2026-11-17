@@ -69,6 +69,7 @@ const DRAWER_MAX_WIDTH = 320;
 const DRAWER_WIDTH_RATIO = 0.82;
 
 export function HomeChromeDrawer({
+  accountActionsAvailable = true,
   closeInstant = false,
   onClose,
   onClosed,
@@ -83,6 +84,7 @@ export function HomeChromeDrawer({
   open,
   user,
 }: {
+  accountActionsAvailable?: boolean;
   /** 去设置时为 true:抽屉留在原地被设置页盖住,自己不播关闭动画。 */
   closeInstant?: boolean;
   onClose(): void;
@@ -382,45 +384,49 @@ export function HomeChromeDrawer({
               </Text>
             </Pressable>
 
-            <Pressable
-              accessibilityLabel={t('devices.list.accounts.title')}
-              accessibilityRole="button"
-              onPress={onOpenAccounts}
-              style={({ pressed }) => [styles.menuRow, pressed && styles.pressed]}
-              testID="home.chromeDrawer.accounts"
-            >
-              <UsersRound color={colors.textSecondary} size={iconSize.md} strokeWidth={iconStroke.regular} />
-              <Text numberOfLines={1} style={styles.menuLabel}>{t('devices.list.accounts.title')}</Text>
-            </Pressable>
+            {accountActionsAvailable ? (
+              <>
+                <Pressable
+                  accessibilityLabel={t('devices.list.accounts.title')}
+                  accessibilityRole="button"
+                  onPress={onOpenAccounts}
+                  style={({ pressed }) => [styles.menuRow, pressed && styles.pressed]}
+                  testID="home.chromeDrawer.accounts"
+                >
+                  <UsersRound color={colors.textSecondary} size={iconSize.md} strokeWidth={iconStroke.regular} />
+                  <Text numberOfLines={1} style={styles.menuLabel}>{t('devices.list.accounts.title')}</Text>
+                </Pressable>
 
-            <View style={styles.menuDivider} />
+                <View style={styles.menuDivider} />
 
-            <Pressable
-              accessibilityLabel={loggingOut
-                ? t('settings.account.loggingOutAccessibility')
-                : t('settings.account.logout')}
-              accessibilityRole="button"
-              accessibilityState={{ busy: loggingOut || undefined, disabled: loggingOut || undefined }}
-              disabled={loggingOut}
-              onPress={requestLogout}
-              style={({ pressed }) => [
-                styles.menuRow,
-                pressed && styles.pressed,
-              ]}
-              testID="home.chromeDrawer.logout"
-            >
-              {/* 退出中只显示转圈(标签保留给读屏),不换成「正在退出」文字。 */}
-              {loggingOut ? (
-                <ActivityIndicator color={colors.destructive} size="small" />
-              ) : (
-                <>
-                  <LogOut color={colors.destructive} size={iconSize.md} strokeWidth={iconStroke.regular} />
-                  <Text numberOfLines={1} style={[styles.menuLabel, styles.dangerMenuLabel]}>
-                    {t('settings.account.logout')}
-                  </Text>
-                </>
-              )}
-            </Pressable>
+                <Pressable
+                  accessibilityLabel={loggingOut
+                    ? t('settings.account.loggingOutAccessibility')
+                    : t('settings.account.logout')}
+                  accessibilityRole="button"
+                  accessibilityState={{ busy: loggingOut || undefined, disabled: loggingOut || undefined }}
+                  disabled={loggingOut}
+                  onPress={requestLogout}
+                  style={({ pressed }) => [
+                    styles.menuRow,
+                    pressed && styles.pressed,
+                  ]}
+                  testID="home.chromeDrawer.logout"
+                >
+                  {/* 退出中只显示转圈(标签保留给读屏),不换成「正在退出」文字。 */}
+                  {loggingOut ? (
+                    <ActivityIndicator color={colors.destructive} size="small" />
+                  ) : (
+                    <>
+                      <LogOut color={colors.destructive} size={iconSize.md} strokeWidth={iconStroke.regular} />
+                      <Text numberOfLines={1} style={[styles.menuLabel, styles.dangerMenuLabel]}>
+                        {t('settings.account.logout')}
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              </>
+            ) : null}
           </View>
         </Animated.View>
       </GestureDetector>

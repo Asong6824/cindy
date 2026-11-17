@@ -51,7 +51,7 @@ export interface ApiFetchOptions {
    * token,调用方还应同时设置 skipAutoRefresh / skipSessionInvalidation,避免对方的 401
    * 牵连官方登录态。
    */
-  authorization?: string;
+  authorization?: string | null;
   /** 跳过 401 自动 refresh（避免无限循环；refresh 自身调用时禁用）。 */
   skipAutoRefresh?: boolean;
   /** Fixed-identity teardown requests must not invalidate a newer active account. */
@@ -103,7 +103,9 @@ async function rawFetch<T>(apiPath: string, opts: ApiFetchOptions): Promise<RawR
     ...(opts.headers ?? {}),
   };
   if (opts.authorization !== undefined) {
-    headers['Authorization'] = opts.authorization;
+    delete headers.Authorization;
+    delete headers.authorization;
+    if (opts.authorization) headers['Authorization'] = opts.authorization;
   } else {
     const token = opts.token !== undefined ? opts.token : authManager.getAccessToken();
     if (token) {

@@ -5,7 +5,9 @@
  * join awaits approval; a revoked socket delivering a queued frame. Tier: unit, no real waits.
  */
 import { randomUUID } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+// The builtin is provided by workerd; these tests exercise the portable ports.
+vi.mock('cloudflare:workers', () => ({ DurableObject: class {} }));
 import { createRelaySigningKey, issueRelayDeviceCert, signRelayInitialization, createRelayPairSecret, computeRelayPairProof, type RelayInitialization } from '@cindy/device-link';
 import { nodeRelayAuthCrypto as crypto } from '@cindy/device-link/node-relay-crypto';
 import { createDeviceCredential, hashSecret } from '../../src/credentials';
@@ -55,7 +57,7 @@ function setup() {
   return { storage, sockets, key, owner, init, call,
     raw: (request: Request) => worker.fetch(request),
     initialize: () => call('/api/device-link/relay/initialize', 'POST', { ...init, proof: signRelayInitialization(crypto, key.seed, init) }),
-    restore() { worker = new UmedaRelay(ctx, env); },
+    restore(open = false) { if (open) env.UMEDA_AUTH_MODE = 'none'; worker = new UmedaRelay(ctx, env); },
     message: (socket: EdgeSocket, message: unknown) => worker.webSocketMessage(socket, JSON.stringify(message)),
   };
 }
@@ -76,6 +78,30 @@ function socket(deviceId: string, credential: string) {
     busy: false, lastInboundAt: Date.now(), helloDeadlineAt: Date.now() + 15_000 } });
 }
 describe('Workers relay public contract', () => {
+  // Unit: explicit personal deployment removes pairing and identity validation.
+  // Signed fixtures alone missed migration of existing names and live sockets.
+  // Minimal input: a previously paired relay followed by unsigned link-open.
+  it('migrates public metadata and routes unsigned devices without any credential in open mode', async () => {
+    const h = setup(); await h.initialize();
+    const member = await join(h);
+    const { credential } = await (await member.poll()).json() as any;
+    const host = socket('desktop', h.owner.credential), phone = socket('phone', credential);
+    h.sockets.push(host, phone); h.restore(true);
+    expect((await (await h.call('/health')).json() as any).authMode).toBe('none');
+    const result = await (await h.call(`${P}/devices`)).json() as any;
+    expect(result.devices).toHaveLength(2);
+    expect(result.devices.find((d: any) => d.deviceId === 'desktop').name).toBe('Test computer');
+    await h.message(host, { v: 1, kind: 'presence-set', payload: { remoteControlEnabled: true } });
+    await h.message(phone, { v: 1, kind: 'link-open', id: 'unsigned', dst: 'desktop' });
+    expect(host.sent.at(-1)).toMatchObject({ src: 'phone', id: 'unsigned' });
+    expect(host.sent.at(-1)).not.toHaveProperty('auth');
+    expect((await h.call(`${P}/relay/admin/join-codes`, 'POST', {})).status).toBe(404);
+    const state = h.storage.values.get('umeda-open-state-v1') as any;
+    expect(state.devices[0]).not.toHaveProperty('cert');
+    expect(state.devices[0]).not.toHaveProperty('credentialHash');
+    h.restore(true);
+    expect((await h.call(`${P}/devices`)).status).toBe(200);
+  });
   it('pins the owner and signs the entire bootstrap, including the credential hash', async () => {
     const h = setup();
     const proof = signRelayInitialization(crypto, h.key.seed, h.init);

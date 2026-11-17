@@ -99,6 +99,29 @@ describe('renderer auth service', () => {
     expect(service.getSnapshot()).toEqual(local);
   });
 
+  // Cold-start regression: Main pushes the initial boundary before committing
+  // a newer stable owner. No second push is required when initialize returns it.
+  // The old version-only fence left the renderer initializing forever. Unit tier.
+  it.each([signedOut, local])('accepts a newer stable initialize after a pending push ($mode)', async state => {
+    const service = createAuthService();
+    const pending = service.initialize();
+    push({ ...signedOut, ownerBoundaryPending: true });
+    const stable = { ...state, ownerGeneration: 1 };
+    resolve(stable);
+    await expect(pending).resolves.toEqual(stable);
+    expect(service.getSnapshot()).toEqual(stable);
+  });
+
+  it('does not reopen an owner when a same-generation pending boundary supersedes initialize', async () => {
+    const service = createAuthService();
+    const pending = service.initialize();
+    const boundary = { ...signedOut, ownerGeneration: local.ownerGeneration, ownerBoundaryPending: true };
+    push(boundary);
+    resolve(local);
+    await expect(pending).resolves.toEqual(boundary);
+    expect(service.getSnapshot()?.canEnterApp).toBe(false);
+  });
+
   it('only removes the departing observer; renderer disposal releases IPC and the cache', () => {
     const service = createAuthService();
     const first = vi.fn();

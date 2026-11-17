@@ -35,12 +35,10 @@ import { SettingsSearchNavigationContext } from './SettingsSearchNavigation';
 import type { SettingsSearchContext } from './settingsSearchTypes';
 import { useSettingsSectionTarget } from './useSettingsSectionTarget';
 import { useSettingsEscape } from './useSettingsEscape';
-import { UserProfileCard } from './UserProfileCard';
 import { NotificationSection } from './NotificationSection';
 import { WindowBehaviorSection } from './WindowBehaviorSection';
 import { ComposerSendShortcutSection } from './ComposerSendShortcutSection';
 import { LanguageSection } from './LanguageSection';
-import { LogoutSection } from './LogoutSection';
 import { ImBotSection, isImBotSettingsGroup, type ImBotSettingsGroup } from './ImBotSection';
 import { TerminalShellSection } from './TerminalShellSection';
 import { LinkOpenSection } from './LinkOpenSection';
@@ -446,11 +444,6 @@ function SettingsViewContent() {
                   </>
                 ) : (
                   <>
-                    {/* Section — User Info (pb 18) */}
-                    <section id={generalSettings.user.targetId} className="pb-[18px]" aria-label={t(generalSettings.user.titleKey)}>
-                      <UserProfileCard />
-                    </section>
-
                     {/* Section — 新电脑设置：从同账号另一台电脑迁移，并保留一次性配置清单。 */}
                     <section id="settings-setup-migration" className="py-[18px]" aria-label={t('setupMigration.settings.title')}>
                       <SetupMigrationSection />
@@ -548,10 +541,6 @@ function SettingsViewContent() {
                       <ExperimentalSection />
                     </section>
 
-                    {/* Section — Logout (pt 18) */}
-                    <section className="pt-[18px]" aria-label={t('settings.sections.logout')}>
-                      <LogoutSection />
-                    </section>
                   </>
                 )}
               </div>

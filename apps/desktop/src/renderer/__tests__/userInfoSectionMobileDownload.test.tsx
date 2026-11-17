@@ -453,50 +453,24 @@ describe('UserInfoSection mobile download entry', () => {
     expect(screen.queryByRole('menuitem', { name: /Cindy user/ })).toBeNull();
   });
 
-  it('keeps the sign-in entry before Settings when the user is not signed in', async () => {
+  // Personal mode has settings but no account onboarding or account-directory request (unit).
+  it('opens settings without exposing account sign-in in local mode', async () => {
     authState.user = null;
     authState.mode = 'local';
 
     render(<UserInfoSection isCollapsed={false} />);
+    expect(screen.queryByRole('button', { name: 'sidebar.user.downloadMobile' })).toBeNull();
     fireEvent.pointerDown(screen.getByRole('button', { name: 'sidebar.user.moreLabel' }), {
       button: 0,
       ctrlKey: false,
     });
 
-    const signIn = await screen.findByRole('menuitem', {
-      name: 'login.signIn',
-    });
-    const settings = screen.getByRole('menuitem', { name: 'sidebar.user.menuSettings' });
-    expect(signIn.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
+    const settings = await screen.findByRole('menuitem', { name: 'sidebar.user.menuSettings' });
+    expect(screen.queryByRole('menuitem', { name: 'login.signIn' })).toBeNull();
     expect(listAccounts).not.toHaveBeenCalled();
-
-    fireEvent.click(signIn);
-    await waitFor(() =>
-      expect(navigate).toHaveBeenCalledWith('/add-account', { state: { returnTo: '/' } }),
-    );
+    expect(syncAccounts).not.toHaveBeenCalled();
+    await userEvent.click(settings);
+    expect(navigate).toHaveBeenCalledWith('/settings');
     expect(toast.loading).not.toHaveBeenCalled();
-  });
-
-  it('reports navigation failure and re-enables the sign-in entry', async () => {
-    authState.user = null;
-    authState.mode = 'local';
-    navigate.mockRejectedValueOnce(new Error('navigation failed'));
-    render(<UserInfoSection isCollapsed={false} />);
-    fireEvent.keyDown(screen.getByRole('button', { name: 'sidebar.user.moreLabel' }), {
-      key: 'Enter',
-    });
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'login.signIn' }));
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith('sidebar.accountSwitcher.startFailed'),
-    );
-    expect(toast.loading).not.toHaveBeenCalled();
-    fireEvent.keyDown(screen.getByRole('button', { name: 'sidebar.user.moreLabel' }), {
-      key: 'Enter',
-    });
-    expect(
-      (await screen.findByRole('menuitem', { name: 'login.signIn' })).getAttribute('aria-disabled'),
-    ).not.toBe('true');
   });
 });

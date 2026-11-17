@@ -47,31 +47,12 @@ afterEach(() => {
 });
 
 describe('HomeZeroModelAction', () => {
-  it('signed-out: login copy and CTA calls sign-in', () => {
-    renderCard('signed-out');
-    expect(screen.getByText('onboarding.homeZeroModel.title')).toBeTruthy();
-    expect(screen.queryByText('onboarding.connectProvider.title')).toBeNull();
-    expect(screen.getByTestId('home-zero-model-cta').className).toContain(
-      '[--button-face-bg:var(--accent-cta-bg-pure)]',
-    );
-    expect(screen.getByTestId('home-zero-model-cta').className).toContain(
-      'text-[var(--accent-pure-cta-fg)]',
-    );
-    expect(screen.getByTestId('home-zero-model-cta').className).not.toContain('send-btn-fg');
-    fireEvent.click(screen.getByTestId('home-zero-model-cta'));
-    expect(signInMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('cloud: opens Cindy AI provider connect, not the provider list', () => {
-    renderCard('cloud');
+  // Personal startup opens the provider wizard in every persisted account mode (unit).
+  it.each(['signed-out', 'local', 'cloud'] as const)('%s: connects a provider without Cindy sign-in', (mode) => {
+    renderCard(mode);
+    expect(screen.getByText('onboarding.connectProvider.title')).toBeTruthy();
     fireEvent.click(screen.getByTestId('home-zero-model-cta'));
     expect(signInMock).not.toHaveBeenCalled();
-    expect(screen.getByTestId('loc').textContent).toBe('/settings?tab=providers&connect=xd');
-  });
-
-  it('own API link opens the provider wizard', () => {
-    renderCard('signed-out');
-    fireEvent.click(screen.getByTestId('home-zero-model-own-api'));
     expect(screen.getByTestId('loc').textContent).toBe('/settings?tab=providers&wizard=1');
   });
 });

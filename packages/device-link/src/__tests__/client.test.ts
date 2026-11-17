@@ -148,6 +148,23 @@ function makeHarness(opts?: {
 
 const tick = (ms = 0): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Unit: public Umeda transport must omit the Authorization header entirely.
+// Existing token-missing coverage intentionally blocks, so readiness remains host supplied.
+it('connects an explicitly unauthenticated relay without sending its readiness label as a credential', async () => {
+  vi.useFakeTimers();
+  const socket = new FakeWs();
+  const createWebSocket = vi.fn(() => socket);
+  const client = new DeviceLinkClient({ getWsUrl: () => 'wss://relay.invalid/ws?deviceId=phone',
+    getToken: async () => 'phone', authorizationScheme: 'None',
+    getHello: () => ({ deviceName: 'Phone', platform: 'ios', appVersion: '1', remoteControlEnabled: false, busy: false }),
+    createWebSocket });
+  try {
+    client.start(); await vi.advanceTimersByTimeAsync(0); socket.ack();
+    expect(createWebSocket).toHaveBeenCalledWith('wss://relay.invalid/ws?deviceId=phone', {});
+    expect(client.getStatus()).toBe('online');
+  } finally { client.stop(); vi.useRealTimers(); }
+});
+
 describe('outbound invoke admission', () => {
   // Unit, PR #9153: resource actions share one channel. Valid parsed actionId
   // values must survive in actual INFO request evidence, while unknown IDs and

@@ -22,7 +22,7 @@ export function createClient(
   host = false,
   options: {
     token?: string;
-    authorizationScheme?: "Bearer" | "CindyRelay";
+    authorizationScheme?: "Bearer" | "CindyRelay" | "None";
     timing?: Partial<DeviceLinkTiming>;
     desktop?: boolean;
     /** 自建中转的设备签名钩子(与 Desktop / Mobile 传给 DeviceLinkClient 的同一选项)。 */
@@ -33,7 +33,7 @@ export function createClient(
   const socketCreatedAt: number[] = [];
   const statuses: string[] = [];
   const client = new DeviceLinkClient({
-    getWsUrl: () => url,
+    getWsUrl: () => options.authorizationScheme === "None" ? `${url}?deviceId=${encodeURIComponent(id)}` : url,
     getToken: async () => options.token ?? `fixture-${id}`,
     authorizationScheme: options.authorizationScheme,
     frameAuth: options.frameAuth,

@@ -265,7 +265,7 @@ export interface DeviceLinkLogger {
 }
 
 /** WebSocket 升级的认证方案,见 `DeviceLinkClientOptions.authorizationScheme`。 */
-export type DeviceLinkAuthorizationScheme = 'Bearer' | 'ProviderShareGuest' | 'CindyRelay';
+export type DeviceLinkAuthorizationScheme = 'Bearer' | 'ProviderShareGuest' | 'CindyRelay' | 'None';
 
 /**
  * 自建中转的设备签名钩子(docs/self-hosted-relay-plan.md §16,实现见 selfHostedRelayAuth.ts)。
@@ -306,6 +306,7 @@ export interface DeviceLinkClientOptions {
    * WebSocket 升级的认证方案。默认 `Bearer`(账号 Access Token);供应商分享的跨区域受邀者
    * 连接对方区域时用 `ProviderShareGuest`(只限分享的凭证，契约 §6.3);连接自建中转用
    * `CindyRelay`(加入中转时拿到的设备凭证，绝不发送账号 token，见 docs/self-hosted-relay-plan.md §5.2)。
+   * `None` 仅供显式无鉴权的个人中转：不发 Authorization，getToken 的非空值仅表示宿主已就绪。
    * 传函数时每次建连前取值:host 在官方中转与自建中转之间切换时,方案与 getToken 必须同一轮一致。
    */
   authorizationScheme?: DeviceLinkAuthorizationScheme | (() => DeviceLinkAuthorizationScheme);
@@ -2499,7 +2500,7 @@ export class DeviceLinkClient {
         ? this.opts.authorizationScheme()
         : this.opts.authorizationScheme;
       ws = await this.opts.createWebSocket(this.opts.getWsUrl(), {
-        authorization: `${scheme ?? 'Bearer'} ${token}`,
+        ...(scheme === 'None' ? {} : { authorization: `${scheme ?? 'Bearer'} ${token}` }),
       });
     } catch (err) {
       // 异步工厂可能在更新的一轮 connect 已经起来之后才 reject —— 那是过期尝试的失败,

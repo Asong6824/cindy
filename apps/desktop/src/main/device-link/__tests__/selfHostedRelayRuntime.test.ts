@@ -127,6 +127,22 @@ afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 const deploymentOf = (owner = 'account-a', sshHostId = 'test-server') =>
   h.config.get(owner)!.deployments.find((deployment) => deployment.sshHostId === sshHostId);
 
+// Unit: a Cloudflare QR must open the isolated phone app; an ordinary relay
+// keeps its existing URL scheme. Previous runtime tests did not create join links.
+it.each(['cloudflare', 'server'] as const)('creates join links for the correct app for %s relays', async origin => {
+  h.config.get('account-a')!.active = {
+    relayId: 'test-relay', name: 'Test relay', baseUrl: 'https://relay.invalid', origin, role: 'owner',
+    deviceId: 'test-device', ownerPublicKey: 'A'.repeat(43),
+  };
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => Response.json(
+    url.endsWith('/join-codes') ? { code: 'C'.repeat(43) } : { requests: [] },
+  )));
+  const result = await command({ type: 'create-join-link' });
+  expect(result.error).toBeUndefined();
+  expect(result.state.joinLink?.link).toMatch(new RegExp(`^${origin === 'cloudflare' ? 'umeda' : 'cindy'}://relay/join\\?`));
+  await command({ type: 'use-official' });
+});
+
 // 用户 2026-10-30：部署是部署，切换要让用户自己切。原实现部署完成就改用新中转。
 // 最小输入：官方线路上部署一次，再显式 use-deployment。tier: unit。
 it('records a completed deployment without switching, and switches only when asked', async () => {

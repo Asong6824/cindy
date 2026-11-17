@@ -1608,7 +1608,10 @@ function WorkersRelaySetup({ state, controller }: { state: SelfHostedRelayState;
   const submit = async () => {
     if (submitting.current) return;
     submitting.current = true;
-    try { await controller.run(prepared ? { type: 'connect-cloud' } : { type: 'prepare-cloud', baseUrl: url.trim(), name: 'Umeda' }); }
+    try {
+      if (!prepared && !await controller.run({ type: 'prepare-cloud', baseUrl: url.trim(), name: 'Umeda' })) return;
+      await controller.run({ type: 'connect-cloud' });
+    }
     finally { submitting.current = false; }
   };
   return <section id={definition.targetId} className="flex flex-col gap-3 rounded-xl bg-[var(--settings-input-bg)] p-4">
@@ -1616,12 +1619,8 @@ function WorkersRelaySetup({ state, controller }: { state: SelfHostedRelayState;
       {(control) => <Input {...control} data-setting-id={definition.id} value={url} onChange={setUrl}
         size="sm" mono disabled={controller.busy} placeholder="https://…workers.dev" />}
     </FormField>
-    {prepared && state.cloud ? <>
-      <Hint>{t(`${k}.publicKeyHint`)}</Hint>
-      <code className="select-text break-all text-12 text-[var(--text-primary)]">UMEDA_OWNER_PUBLIC_KEY={state.cloud.ownerPublicKey}</code>
-    </> : null}
     <div><Button size="sm" disabled={controller.busy || !url.trim()} onClick={() => void submit()}>
-      {t(prepared ? `${k}.connect` : `${k}.prepare`)}
+      {t(`${k}.connect`)}
     </Button></div>
     {state.cloud?.connected ? <Hint>{t(`${k}.connected`)}</Hint> : null}
   </section>;
@@ -1860,7 +1859,6 @@ export function RelayServicePanel({ controller }: { controller: SelfHostedRelayC
           {relay?.origin === 'cloudflare' ? (
             <RouteRow selected icon={<Cloud size={15} />} title={relay.name}
               hint={<span className="font-mono">{relay.baseUrl}</span>} side={<RouteSide />}>
-              <AddDevice state={state} controller={controller} bare />
             </RouteRow>
           ) : null}
           {state.deployments.map(serverRow)}

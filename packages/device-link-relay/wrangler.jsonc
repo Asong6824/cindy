@@ -5,6 +5,9 @@
   "compatibility_date": "2026-11-14",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  "preview_urls": false,
+  "keep_vars": true,
+  "vars": { "UMEDA_AUTH_MODE": "none" },
   "durable_objects": {
     "bindings": [{ "name": "UMEDA_RELAY", "class_name": "UmedaRelay" }]
   },

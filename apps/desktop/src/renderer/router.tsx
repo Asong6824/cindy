@@ -5,10 +5,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { MainEntryRedirect } from '@/components/layout/MainEntryRedirect';
 import { RouteErrorFallback } from '@/components/error/RouteErrorFallback';
 import { SidebarWindowLayout } from '@/components/layout/SidebarWindowLayout';
-import { LoginPage } from '@/components/login/LoginPage';
-import { AddAccountLoginPage } from '@/components/login/AddAccountLoginPage';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { GuestRoute } from '@/components/auth/GuestRoute';
 import { LocalDbGate } from '@/components/auth/LocalDbGate';
 import { CCAgentFeatureLayout } from '@/features/cc-agent/CCAgentFeatureLayout';
 import { CCAgentIndexRedirect } from '@/features/cc-agent/CCAgentIndexRedirect';
@@ -33,10 +30,9 @@ function EmptyRouteFallback() {
 /**
  * 三层路由架构：
  *
- *   GuestRoute (未登录)
- *    └── /login                    → LoginPage
+ *   /login、/add-account           → 兼容旧入口，转到主界面
  *
- *   ProtectedRoute (已登录) — 校验 canEnterApp（真登出或换号窗口）
+ *   ProtectedRoute — 等待本地身份就绪，校验 canEnterApp
  *    └── LocalDbGate               → 等 localDb.ensureReady（按 userId 切库）
  *         └── MainLayout            → 主功能区
  *              ├── /                → Restore account's last top-level entry
@@ -49,10 +45,7 @@ function EmptyRouteFallback() {
 export const router = createHashRouter([
   {
     path: '/login',
-    element: <GuestRoute />,
-    // 登录线渲染崩溃时的全屏兜底(没有它 react-router 会渲染开发者默认错误页)。
-    errorElement: <RouteErrorFallback />,
-    children: [{ index: true, element: <LoginPage /> }],
+    element: <Navigate to="/" replace />,
   },
   {
     path: '/',
@@ -63,7 +56,7 @@ export const router = createHashRouter([
     children: [
       {
         path: 'add-account',
-        element: <AddAccountLoginPage />,
+        element: <Navigate to="/" replace />,
       },
       {
         // 主功能区入口 —— 经过 LocalDbGate（localDb 就绪）才能进

@@ -470,7 +470,7 @@ export default function SettingsScreen() {
   // 都要在这里给出原因,并配「切回官方中转」。
   const relayIssueMessage = !selfHostedRelay
     ? null
-    : selfHostedRelay.credential === null
+    : selfHostedRelay.authMode !== 'none' && selfHostedRelay.credential === null
       ? t('relay.settings.credentialMissingHint')
       : status !== 'online' && (connectionIssue?.kind === 'device-removed' || connectionIssue?.kind === 'auth-failed')
         ? t('relay.settings.removedHint')
@@ -1062,7 +1062,7 @@ export default function SettingsScreen() {
         </SettingsGroup>
 
         {/* 账号操作:退出保持明确(先确认),说明写在按钮下方;注销账号仅保留低调的次要文字入口。 */}
-        <View style={styles.dangerArea} testID="settings.accountActions">
+        {!auth.isLocalMode ? <View style={styles.dangerArea} testID="settings.accountActions">
           <MainWindowActionGroup
             dangerActions={[
               {
@@ -1095,7 +1095,7 @@ export default function SettingsScreen() {
               </Text>
             </Pressable>
           ) : null}
-        </View>
+        </View> : null}
       </ScrollView>
       <SheetModal
         backdropTestID="settings.appearancePicker.backdrop"

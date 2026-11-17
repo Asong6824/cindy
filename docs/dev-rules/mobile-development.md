@@ -62,6 +62,10 @@ pnpm mobile:sim:start:cn
 
 修改原生依赖、Expo 原生配置，或切换到尚未安装对应开发包的区域时，重新构建：
 
+Expo SDK 58 的 `prebuild` 默认重建原生目录；本仓普通 `rebuild` 显式传入
+`--no-clean`，保留本地签名设置与编译缓存。直接排查 prebuild 时也不要省略此参数，
+除非当前任务明确授权清理原生工程。
+
 这里的 `rebuild` 是“准备兼容原生包”的入口：先复用匹配缓存，未命中才完整编译。
 未安装 App 不等于必须编译；纯 JS/TS 改动且 `native-matched` 时直接复用已安装包。
 截图和交付测试的完整流程见 [截图与当前版本测试](../../apps/mobile/docs/simulator-debugging.md#截图与当前版本测试)，

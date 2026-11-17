@@ -68,7 +68,12 @@ export async function apiFetchRaw<T>(
     throw new ApiError(RELAY_CREDENTIAL_UNAVAILABLE, 0, i18n.t('relay.errors.credentialUnavailable'));
   }
   const headers: Record<string, string> = { ...opts.headers, 'Content-Type': 'application/json' };
-  if (relayAuth) headers.Authorization = `CindyRelay ${relayAuth.credential}`;
+  if (relayAuth?.kind === 'open') {
+    delete headers.Authorization;
+    delete headers.authorization;
+    headers['x-umeda-device-id'] = relayAuth.deviceId;
+  }
+  else if (relayAuth?.kind === 'relay') headers.Authorization = `CindyRelay ${relayAuth.credential}`;
   else if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
   if (opts.cache === 'no-store') {
     // Also tell native HTTP caches not to reuse or store short-lived responses.

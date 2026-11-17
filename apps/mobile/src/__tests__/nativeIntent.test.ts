@@ -218,6 +218,7 @@ describe('mobile native deep-link redirects', () => {
       relayIncoming,
       relayIncoming.replace('cindy://', 'cindycn://'),
       relayIncoming.replace('cindy://', 'cindydev://'),
+      relayIncoming.replace('cindy://', 'umeda://'),
       relayIncoming.replace('cindy:/', ''),
       relayIncoming.replace('cindy://', ''),
     ]) {

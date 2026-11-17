@@ -10,13 +10,6 @@ export const generalSettings = defineSettings({
     titleKey: TAB_LABEL_KEY['general'],
     sectionKey: 'settings.tabs.general',
   },
-  user: {
-    id: 'general.user',
-    tab: 'general',
-    targetId: 'settings-search-target-general-user',
-    titleKey: 'settings.sections.user',
-    sectionKey: 'settings.sections.user',
-  },
   setupMigration: {
     id: 'general.setupMigration',
     tab: 'general',

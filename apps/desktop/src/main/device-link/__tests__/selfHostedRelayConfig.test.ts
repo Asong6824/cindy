@@ -12,6 +12,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 
 const files = vi.hoisted(() => new Map<string, string>());
+const session = vi.hoisted(() => ({ mode: 'cloud' }));
 
 vi.mock('node:fs', () => ({
   default: {
@@ -29,14 +30,14 @@ vi.mock('node:fs', () => ({
 vi.mock('electron', () => ({ safeStorage: { isEncryptionAvailable: () => true } }));
 vi.mock('../../appSessionState.js', () => ({
   activeOwnerScopeKey: () => 'account-a',
-  getActiveAppSession: () => ({ dataOwnerId: 'account-a' }),
+  getActiveAppSession: () => ({ dataOwnerId: 'account-a', mode: session.mode }),
   ownerScopedUserDataPath: (...parts: string[]) => parts.join('/'),
 }));
 vi.mock('../../logger.js', () => ({ createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }) }));
 vi.mock('../../plugin-oauth/identityStore.js', () => ({ oauthSecureStorageAvailable: () => true }));
 vi.mock('../selfHostedRelayRouting.js', () => ({ setSelfHostedRelaySource: vi.fn() }));
 
-import { invalidateRelayConfigCache, readRelayConfig, writeRelayConfig, type RelayDeployment } from '../selfHostedRelayConfig';
+import { activeSelfHostedRelay, invalidateRelayConfigCache, readRelayConfig, writeRelayConfig, type RelayDeployment } from '../selfHostedRelayConfig';
 
 const CONFIG = 'device-link-relay/config.json';
 const KEY = 'A'.repeat(43);
@@ -52,8 +53,19 @@ function deployment(index: number): RelayDeployment {
 const host = { enabled: false, port: 47820, listenAll: false, externalUrl: null, relayId: null };
 
 beforeEach(() => {
+  session.mode = 'cloud';
   files.clear();
   invalidateRelayConfigCache();
+});
+
+// Unit: the personal Cloudflare route must survive an empty keychain; existing
+// deployment migration coverage did not attempt an active route without secrets.
+it('restores the personal public route without loading a credential or signing key', () => {
+  session.mode = 'local';
+  const active = { relayId: deployment(1).relayId, name: 'Umeda', baseUrl: 'https://relay.example.invalid',
+    role: 'owner', origin: 'cloudflare', deviceId: 'pc', ownerPublicKey: '' };
+  files.set(CONFIG, JSON.stringify({ version: 2, active, cloud: active, host, deployments: [] }));
+  expect(activeSelfHostedRelay()).toEqual({ ...active, authMode: 'none', credential: '', signingSeed: '' });
 });
 
 it('reads a legacy single deployment and writes the list with a legacy copy older versions can read', () => {

@@ -223,7 +223,7 @@ async function rebuildAndroidSimulator() {
     ...(sdkRoot ? { ANDROID_SDK_ROOT: sdkRoot, ANDROID_HOME: sdkRoot } : {}),
   });
   console.log('› Android expo prebuild (debug development client)');
-  runPnpm(['exec', 'expo', 'prebuild', '--platform', 'android', '--no-install']);
+  runPnpm(['exec', 'expo', 'prebuild', '--platform', 'android', '--no-install', '--no-clean']);
 
   const gradle = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
   console.log('› Android gradle assembleDebug');
@@ -330,7 +330,8 @@ if (!app) {
   // --no-install:node modules 由仓库工作流负责,pod install 由下面的 podInstall() 有界执行。
   // pnpm exec:pnpm 不在 apps/mobile/node_modules/.bin 放 expo bin,直接 node 跑会 MODULE_NOT_FOUND。
   console.log('› expo prebuild(把 app.json / plugins / Pods 的 native 改动应用进 ios/,不含 pod install)…');
-  run('pnpm', ['exec', 'expo', 'prebuild', '-p', 'ios', '--no-install']);
+  // SDK 58 recreates native folders by default; keep local signing settings and build caches.
+  run('pnpm', ['exec', 'expo', 'prebuild', '-p', 'ios', '--no-install', '--no-clean']);
   console.log('› pod install(本地 specs 优先,输出空转看门狗兜底)…');
   try {
     await podInstallBounded({ iosDir, env: devProcessEnv });

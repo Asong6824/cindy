@@ -22,7 +22,7 @@ import {
 
 export const RELAY_JOIN_HOST = 'relay';
 export const RELAY_JOIN_PATH = '/join';
-const RELAY_APPS: ReadonlySet<string> = new Set(['cindy', 'cindycn', 'cindydev']);
+const RELAY_APPS: ReadonlySet<string> = new Set(['cindy', 'cindycn', 'cindydev', 'umeda']);
 const MAX_LINK_LENGTH = 2048;
 const JOIN_CODE_PATTERN = /^[A-Za-z0-9_-]{16,256}$/;
 const PAIR_SECRET_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -60,7 +60,7 @@ export function buildRelayJoinLink(input: {
   code: string;
   ownerPublicKey: string;
   pairSecret: string;
-  app: SharedTaskInvitationApp;
+  app: SharedTaskInvitationApp | 'umeda';
 }): string {
   const baseUrl = normalizeRelayBaseUrl(input.baseUrl);
   if (

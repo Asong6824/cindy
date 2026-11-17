@@ -72,6 +72,7 @@ function scheduleRefresh(target: Current, minIntervalMs: number): void {
 /** DeviceLinkClient 每帧调用:官方中转返回 null(不签名、不核对,wire 与旧版相同)。 */
 export function currentSelfHostedRelayFrameAuth(): DeviceLinkFrameAuth | null {
   const relay = getActiveSelfHostedRelay();
+  if (relay?.authMode === 'none') { dispose(); return null; }
   const signing = relay?.signing;
   if (!relay || !signing || !relay.credential) {
     dispose();

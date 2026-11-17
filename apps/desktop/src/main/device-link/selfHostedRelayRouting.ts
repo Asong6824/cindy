@@ -6,6 +6,7 @@
  * 没有登记(单测、未启用该功能的进程)时一律走官方中转,与引入自建中转之前的行为一致。
  */
 export interface ActiveSelfHostedRelay {
+  authMode?: 'none';
   relayId: string;
   name: string;
   baseUrl: string;

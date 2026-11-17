@@ -21,6 +21,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('electron', () => ({ net: { fetch: mocks.netFetch } }));
+vi.mock('../../appSessionState.js', () => ({
+  getActiveAppSession: () => ({ mode: 'cloud', dataOwnerId: 'test-account' }),
+  isAppSessionBoundaryPending: () => false,
+}));
 vi.mock('../../authManager', () => ({
   getAccessToken: mocks.getAccessToken,
   refresh: mocks.refresh,
@@ -52,6 +56,18 @@ describe('deviceLinkApiFetch', () => {
     vi.clearAllMocks();
     mocks.relay = null;
     mocks.officialBase = 'https://device-link.official.invalid';
+  });
+
+  // Unit: unlike a signed Node relay, the explicit public Umeda route has no secret.
+  // Minimal input: no credential plus a public routing ID; assert actual HTTP headers.
+  it('reads a public relay without account credentials or device credentials', async () => {
+    mocks.relay = { authMode: 'none', baseUrl: 'https://relay.example.invalid', credential: '', role: 'owner',
+      relayId: 'r', name: 'Umeda', deviceId: 'pc', signingSeed: '', ownerPublicKey: '' };
+    mocks.netFetch.mockResolvedValueOnce(Response.json({ devices: [] }));
+    await deviceLinkApiFetch('/api/device-link/devices');
+    expect(lastRequest()).toEqual({ url: 'https://relay.example.invalid/api/device-link/devices', authorization: undefined });
+    expect(mocks.netFetch.mock.calls[0][1].headers['x-umeda-device-id']).toBe('pc');
+    expect(mocks.getAccessToken).not.toHaveBeenCalled();
   });
 
   // /models 复用真实目录读取与 API 路由；旧 caller 直接用 serverApiFetch 会把官方 token 发到自建中转。

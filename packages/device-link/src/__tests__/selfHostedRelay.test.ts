@@ -20,7 +20,7 @@ const keyQuery = `&o=${OWNER}&s=${SECRET}`;
 
 describe('relay join links', () => {
   it('round-trips through every app scheme and the router path form', () => {
-    for (const app of ['cindy', 'cindycn', 'cindydev'] as const) {
+    for (const app of ['cindy', 'cindycn', 'cindydev', 'umeda'] as const) {
       const link = buildRelayJoinLink({ baseUrl: 'http://192.168.1.20:47820/', code: CODE, ...keys, app });
       expect(link.startsWith(`${app}://relay/join?`)).toBe(true);
       expect(parseRelayJoinLink(link)).toEqual({ baseUrl: 'http://192.168.1.20:47820', code: CODE, ...keys });

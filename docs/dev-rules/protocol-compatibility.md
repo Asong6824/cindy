@@ -888,6 +888,19 @@ Electron 进程的 IPC/WebRTC smoke，以及 Desktop、Mobile 和共享包类型
 
 ## 自建中转服务（`packages/device-link-relay` 与客户端接入）
 
+独立 Cloudflare 中转（2026-11-17，自用分支）：见
+[`umeda-standalone-status.md`](../umeda-standalone-status.md)。主人明确选择无身份验证模式，
+Wrangler 显式设置 `UMEDA_AUTH_MODE=none`，设备 ID 仅为自报的路由标签。此路径自动建立中转，
+没有初始化签名、加入审批、设备凭证或逐帧签名验证；公开地址可被任意客户端访问。
+Desktop 本地 Cloudflare 路由与独立 Mobile 同步使用 `None` 认证方案，不发送 Authorization，
+也不读取历史凭证／签名密钥。手机可在本地构建时注入公开中转地址，旧安装可沿用已存地址。
+此变更保留 v1 帧结构、消息大小限制及本机远控开关；不修改官方服务或 Node 中转的原认证路径。
+旧版签名手机不能接收新版未签名消息，必须与 Worker / Desktop 同步更新；无验证持久状态
+只从历史状态迁移公开设备元数据，历史签名状态不删除、不当成新模式的认证材料。
+Worker 附件上限仍为 8 MiB，媒体签名 URL 只约束短期传输，不提供设备身份认证。
+验证入口为 `pnpm --filter @cindy/device-link-relay exec tsx scripts/run-interop.ts --cloudflare --open`，
+真实 workerd 上覆盖无凭证加入、通信与自动重连；Node 仍运行原 `interop` 的签名流程。
+
 方案见 [`docs/self-hosted-relay-plan.md`](../self-hosted-relay-plan.md)。内核实现与官方 relay 相同的 v1 线协议
 （`@cindy/device-link-protocol`），**不改 `PROTOCOL_VERSION`、帧格式或官方 relay / 服务端**。新增内容只存在于自建中转上：
 

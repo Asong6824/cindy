@@ -155,7 +155,7 @@ describe('sim-rebuild workflow', () => {
     const fingerprintEnv = result.spawnSync.mock.calls[0][2].env;
     expect(fingerprintEnv).toMatchObject({ EXPO_PUBLIC_APP_VARIANT: 'beta', CINDY_USE_LOCAL_REGION_CONFIG: '1' });
     if (force) {
-      expect(result.execFileSync).toHaveBeenCalledWith('pnpm', ['exec', 'expo', 'prebuild', '-p', 'ios', '--no-install'], expect.objectContaining({ env: fingerprintEnv }));
+      expect(result.execFileSync).toHaveBeenCalledWith('pnpm', ['exec', 'expo', 'prebuild', '-p', 'ios', '--no-install', '--no-clean'], expect.objectContaining({ env: fingerprintEnv }));
       expect(result.podInstallBounded).toHaveBeenCalledWith({ iosDir: `${mobileDir}/ios`, env: fingerprintEnv });
       expect(result.execFileSync).toHaveBeenCalledWith('xcodebuild', expect.arrayContaining(['-destination', `platform=iOS Simulator,id=${udid}`]), expect.objectContaining({ env: fingerprintEnv }));
       expect(result.cpSync).toHaveBeenCalledWith(builtApp, `${cacheDir}/Cindy.app`, expect.any(Object));
@@ -223,7 +223,7 @@ describe('sim-rebuild workflow', () => {
     expect(result.error).toEqual(new Error(`exit:${healthy ? 0 : 1}`));
     expect(result.resolveAndroidSdkTools).toHaveBeenCalledWith(expect.objectContaining({ platform: 'win32', requireTools: true }));
     expect(result.resolveJavaRuntimeEnv).toHaveBeenCalledWith(expect.objectContaining({ ANDROID_SDK_ROOT: '/sdk', ANDROID_HOME: '/sdk', CINDY_USE_LOCAL_REGION_CONFIG: '1' }));
-    expect(result.execFileSync).toHaveBeenCalledWith('/node', ['/tools/pnpm.cjs', 'exec', 'expo', 'prebuild', '--platform', 'android', '--no-install'], expect.any(Object));
+    expect(result.execFileSync).toHaveBeenCalledWith('/node', ['/tools/pnpm.cjs', 'exec', 'expo', 'prebuild', '--platform', 'android', '--no-install', '--no-clean'], expect.any(Object));
     expect(result.execFileSync).toHaveBeenCalledWith('cmd.exe', ['/d', '/s', '/c', '.\\gradlew.bat assembleDebug'], expect.objectContaining({ cwd: `${mobileDir}/android`, env: result.javaEnv, windowsVerbatimArguments: true }));
     const install = result.execFileSync.mock.calls.findIndex(([, args]) => args.includes('install'));
     const launch = result.execFileSync.mock.calls.findIndex(([, args]) => args.includes('monkey'));

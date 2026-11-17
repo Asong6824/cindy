@@ -127,7 +127,7 @@ function parseActive(raw: unknown): ActiveRelay | null {
     (a.role !== 'owner' && a.role !== 'member') ||
     (a.origin !== 'host' && a.origin !== 'server' && a.origin !== 'join' && a.origin !== 'cloudflare') ||
     !isString(a.deviceId) ||
-    !isRelayPublicKey(a.ownerPublicKey)
+    (a.origin !== 'cloudflare' && !isRelayPublicKey(a.ownerPublicKey))
   ) {
     return null;
   }
@@ -138,7 +138,7 @@ function parseActive(raw: unknown): ActiveRelay | null {
     role: a.role,
     origin: a.origin,
     deviceId: a.deviceId,
-    ownerPublicKey: a.ownerPublicKey,
+    ownerPublicKey: typeof a.ownerPublicKey === 'string' ? a.ownerPublicKey : '',
   };
 }
 
@@ -274,6 +274,9 @@ export function activeSelfHostedRelay(): ActiveSelfHostedRelay | null {
   if (!getActiveAppSession().dataOwnerId) return null;
   const state = load();
   const active = state.config.active;
+  if (active?.origin === 'cloudflare' && getActiveAppSession().mode === 'local') {
+    return { ...active, authMode: 'none', credential: '', signingSeed: '' };
+  }
   // 秘密缺失(钥匙串被清 / 换机):退回官方,避免拿空凭证无限重连。
   const secrets = active ? cachedSecrets(state, active.relayId) : null;
   if (!active || !secrets) return null;

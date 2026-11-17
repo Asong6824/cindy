@@ -1141,7 +1141,7 @@
     "closePermissionGuide": "关闭",
     "title": "远程桌面",
     "allow": "允许远程桌面",
-    "allowHint": "允许已登录的同账号设备查看和操作这台电脑的所有应用。需同时开启上方的设备控制。",
+    "allowHint": "允许连接的设备查看和操作这台电脑的所有应用。需同时开启上方的设备控制。",
     "permissionHint": "请在电脑的系统设置中允许屏幕录制和辅助功能，然后重新连接。",
     "inputUnsupported": "Cindy 暂不支持这台电脑当前桌面环境的远程键鼠控制。",
     "controlUnavailable": "远程键鼠控制暂时不可用，请重新连接。",
@@ -6134,15 +6134,15 @@
         },
         "workers": {
           "title": "Cloudflare Worker 地址",
-          "hint": "在本地模式下连接自己的中转。先准备这台电脑。",
+          "hint": "在本地模式下直接连接自己的中转。",
           "prepare": "准备这台电脑",
           "publicKeyHint": "将此公钥设为 Worker 的 UMEDA_OWNER_PUBLIC_KEY，部署中转后再连接。请保留这台电脑的私钥。",
-          "connect": "初始化并连接",
+          "connect": "连接",
           "connected": "已连接到你的中转"
         }
       },
       "title": "远程连接",
-      "description": "在同账号的设备之间互相远程操控，或通过 SSH 连接远端主机。",
+      "description": "在设备之间互相远程操控，或通过 SSH 连接远端主机。",
       "accessRevokedByPeer": "访问权限已被撤销，需对方在选项中恢复",
       "deviceControlToggleAria": "切换是否控制 {{name}}",
       "myDevices": {
@@ -6470,8 +6470,8 @@
     "devices": {
       "title": "设备互联",
       "description": "同一飞书账号登录的设备可以互相发现；开启「允许控制」后，你的其它设备可以远程连接本机的 {{appName}}。",
-      "allowControl": "允许同账号设备控制本机",
-      "allowControlHint": "开启后，使用同一账号登录的其它设备无需逐次确认即可控制本机；本机会显示远程控制提示，可随时断开。",
+      "allowControl": "允许设备控制本机",
+      "allowControlHint": "开启后，连接到当前中转的设备可以控制本机；可随时关闭。",
       "keepAwake": "保持电脑唤醒",
       "keepAwakeHint": "开启后本机不会进入休眠，后台的 Agent 与定时任务可持续运行(仍可关闭显示器 / 锁屏)。",
       "linkStatus": {

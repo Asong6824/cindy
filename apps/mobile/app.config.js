@@ -232,6 +232,36 @@ function withNativeAuthPlugins(plugins, env, region) {
 
 module.exports = (context = {}) => {
   const baseConfig = context.config ?? appJson.expo;
+  // Standalone is a separate cold-built app. Ambient EAS/self-host publishing
+  // settings must never reconnect its native updater to an account build.
+  if (process.env.EXPO_PUBLIC_UMEDA_MODE !== '0') {
+    const { owner, updates, extra, ...base } = baseConfig;
+    const { eas, xdtProductionEnv, cindy, ...localExtra } = extra ?? {};
+    const { googleServicesFile, ...android } = base.android ?? {};
+    const entitlements = { ...base.ios?.entitlements };
+    delete entitlements['aps-environment'];
+    delete entitlements['com.apple.developer.applesignin'];
+    delete entitlements['com.apple.developer.usernotifications.communication'];
+    const accountPlugins = new Set([
+      'expo-apple-authentication',
+      'expo-notifications',
+      './plugins/with-communication-notifications',
+    ]);
+    return {
+      ...base,
+      name: 'Umeda',
+      slug: 'umeda-mobile',
+      scheme: 'umeda',
+      ios: { ...base.ios, bundleIdentifier: 'app.umeda.cindy', usesAppleSignIn: false, entitlements },
+      android: { ...android, package: 'app.umeda.cindy' },
+      updates: { enabled: false, checkAutomatically: 'NEVER' },
+      plugins: [
+        ...(base.plugins ?? []).filter(plugin => !accountPlugins.has(Array.isArray(plugin) ? plugin[0] : plugin)),
+        './plugins/with-standalone-ios',
+      ],
+      extra: { ...localExtra, cindy: { authRegion: 'global' } },
+    };
+  }
   const region = resolveRegion();
   const mobileBuildEnv = resolveMobileBuildEnv();
   const mobileBundleEnv = {

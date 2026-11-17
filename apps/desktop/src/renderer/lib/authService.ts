@@ -134,7 +134,10 @@ export function createAuthService(): AuthService {
         log.info('initialize requested');
         initializeTask = (async () => {
           const raw = await window.electronAPI.authInitialize();
-          if (version !== startVersion && snapshot) {
+          // A pending push can precede Main committing the stable startup owner.
+          // Its newer initialize result must release the gate; same/older owner
+          // generations still lose to the push so an account switch cannot rewind.
+          if (version !== startVersion && snapshot && raw.ownerGeneration <= snapshot.ownerGeneration) {
             log.info('discarded stale initialize response');
             return snapshot;
           }

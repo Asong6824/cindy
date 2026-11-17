@@ -16,6 +16,8 @@ import { isSharedTaskMediaKey } from '@cindy/device-link';
 import { DEVICE_LINK_API_BASE_URL, getOfficialDeviceLinkApiBaseUrl, setDeviceLinkApiBaseOverride } from '@/config/env';
 
 export interface SelfHostedRelayRoute {
+  authMode?: 'none';
+  deviceId?: string;
   relayId: string;
   name: string;
   /** 规范化后的中转基础地址(不含 `/api/...`,无末尾斜杠)。 */
@@ -47,6 +49,7 @@ export function deviceLinkMediaApiBaseUrl(key: unknown): string {
 }
 
 export type SelfHostedRelayAuthorization =
+  | { kind: 'open'; deviceId: string }
   | { kind: 'relay'; credential: string }
   /** 目标是自建中转,但当前没有可用凭证(凭证缺失,或该中转已不是当前中转):不发请求。 */
   | { kind: 'blocked' };
@@ -74,6 +77,7 @@ function sameSigning(a: SelfHostedRelaySigning | null, b: SelfHostedRelaySigning
 function sameRoute(a: SelfHostedRelayRoute | null, b: SelfHostedRelayRoute | null): boolean {
   if (!a || !b) return a === b;
   return a.relayId === b.relayId && a.name === b.name && a.baseUrl === b.baseUrl && a.credential === b.credential
+    && a.authMode === b.authMode && a.deviceId === b.deviceId
     && sameSigning(a.signing, b.signing);
 }
 
@@ -147,6 +151,9 @@ export function selfHostedRelayAuthorizationFor(
   baseUrl: string | undefined | null,
 ): SelfHostedRelayAuthorization | null {
   if (!isSelfHostedRelayBaseUrl(baseUrl)) return null;
+  if (active?.authMode === 'none' && active.baseUrl === normalizeSelfHostedRelayBase(baseUrl!)) {
+    return { kind: 'open', deviceId: active.deviceId ?? '' };
+  }
   if (active?.credential && active.baseUrl === normalizeSelfHostedRelayBase(baseUrl!)) {
     return { kind: 'relay', credential: active.credential };
   }

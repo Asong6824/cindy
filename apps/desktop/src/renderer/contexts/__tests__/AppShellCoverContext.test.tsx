@@ -56,7 +56,7 @@ describe('AppShellCover', () => {
     env.status = 'passed';
   });
 
-  it('未登录不持盖,让 splash 退到登录页', () => {
+  it('本地身份初始化失败时不持盖,让恢复界面可见', () => {
     auth.canEnterApp = false;
     renderCover();
     expect(screen.getByTestId('cover').textContent).toBe('open');
@@ -116,7 +116,7 @@ describe('AppShellCover', () => {
 
   it('derives the destination from environment, auth boundary and the current owner database', () => {
     const hook = renderHook(() => useAppShellCover(), { wrapper: AppShellCoverProvider });
-    expect(hook.result.current.startupTarget).toBe('login');
+    expect(hook.result.current.startupTarget).toBe('startup-error');
     auth.ownerBoundaryPending = true;
     hook.rerender();
     expect(hook.result.current.startupTarget).toBe('splash');

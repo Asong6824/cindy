@@ -118,6 +118,14 @@ describe('home navigation drawer', () => {
     expect([...account.querySelectorAll('img')].map(image => image.src)).toEqual(['https://example.com/new-person.png', props.user.orgLogoUrl]);
   });
 
+  // Local identity has no account lifecycle; hide its switch/logout actions (unit).
+  it('keeps settings available without account actions in personal mode', async () => {
+    await act(async () => root.render(<HomeChromeDrawer {...props} accountActionsAvailable={false} />));
+    expect(container.querySelector('[data-testid="home.chromeDrawer.accounts"]')).toBeNull();
+    expect(container.querySelector('[data-testid="home.chromeDrawer.logout"]')).toBeNull();
+    expect(container.textContent).toContain('devices.list.menu.settings');
+  });
+
   it('waits for native layout before entrance and ignores stale close completion after reopening', async () => {
     await act(async () => root.render(<HomeChromeDrawer {...props} />));
     expect(driver.animations).toHaveLength(0);

@@ -17,7 +17,7 @@ import { isSidebarWindow } from '@/lib/sidebarWindow';
  * splash / 品牌层在 coverHeld 期间不得退场；副窗不走 splash，也不持盖。
  */
 export type LocalDbGateStatus = 'pending' | 'ready' | 'fatal';
-export type StartupTarget = 'splash' | 'login' | 'app' | 'database-error';
+export type StartupTarget = 'splash' | 'login' | 'app' | 'database-error' | 'startup-error';
 export interface LocalDbOwnerStamp {
   dataOwnerId: string | null;
   ownerGeneration: number;
@@ -66,7 +66,7 @@ export function AppShellCoverProvider({ children }: { children: ReactNode }) {
   const startupTarget: StartupTarget = envStatus !== 'passed' || isInitializing || ownerBoundaryPending
     ? 'splash'
     : !canEnterApp
-      ? 'login'
+      ? 'startup-error'
       : localDbGateStatus === 'fatal'
         ? 'database-error'
         : localDbGateStatus === 'ready' ? 'app' : 'splash';

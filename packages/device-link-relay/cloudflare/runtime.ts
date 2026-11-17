@@ -20,7 +20,7 @@ export interface EdgeSocket {
 }
 
 export interface SocketAttachment {
-  credentialHash: string;
+  credentialHash?: string;
   connection: HubConnectionState;
 }
 
@@ -36,6 +36,8 @@ export interface RelayEnvironment {
   UMEDA_RELAY: { idFromName(name: string): unknown; get(id: unknown): { fetch(request: Request): Promise<Response> } };
   /** Owner public key only. No private key or LLM credential is deployed. */
   UMEDA_OWNER_PUBLIC_KEY?: string;
+  /** Explicit personal deployment choice: no client authentication or pairing. */
+  UMEDA_AUTH_MODE?: 'none';
 }
 
 declare global {

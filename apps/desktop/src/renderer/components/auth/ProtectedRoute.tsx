@@ -1,14 +1,14 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
+import { AppCrashScreen } from '@/components/error/AppCrashScreen';
 
 import { useAuth } from '@/contexts/AuthContext';
 
 export function ProtectedRoute() {
-  const { canEnterApp, isInitializing, dataOwnerId } = useAuth();
+  const { canEnterApp, isInitializing, ownerBoundaryPending, dataOwnerId } = useAuth();
 
-  if (isInitializing) return null;
-  // canEnterApp is false for a real signed-out session and while a real owner
-  // change is in flight. Same-owner token refresh keeps it true.
-  if (!canEnterApp) return <Navigate to="/login" replace />;
+  if (isInitializing || ownerBoundaryPending) return null;
+  // Personal startup must fail closed without looping through the retired login route.
+  if (!canEnterApp) return <AppCrashScreen message="Local identity is unavailable." />;
 
   // Owner changes must remount the protected tree so transient New Maker
   // drafts and other route-local state cannot leak across data namespaces.

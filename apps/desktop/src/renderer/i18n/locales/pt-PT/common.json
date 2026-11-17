@@ -1170,7 +1170,7 @@
     "closePermissionGuide": "Fechar",
     "title": "Ambiente de trabalho remoto",
     "allow": "Permitir ambiente de trabalho remoto",
-    "allowHint": "Permitir que os dispositivos com sessão iniciada vejam e controlem todas as aplicações neste computador. Ative também o controlo de dispositivos acima.",
+    "allowHint": "Permite que dispositivos ligados vejam e controlem todas as aplicações deste computador. O controlo de dispositivos acima também deve estar ativo.",
     "permissionHint": "No computador, permita a gravação do ecrã e a acessibilidade nas definições do sistema e volte a ligar.",
     "inputUnsupported": "O ambiente de trabalho atual deste computador não suporta o controlo remoto do teclado e do rato em Cindy.",
     "controlUnavailable": "O computador remoto não aceita entrada. Verifique as permissões de controlo e a ligação e volte a ligar.",
@@ -6238,15 +6238,15 @@
         },
         "workers": {
           "title": "URL do Worker da Cloudflare",
-          "hint": "Liga o teu próprio relay no modo local. Primeiro prepara este computador.",
+          "hint": "Liga diretamente ao teu relay no modo local.",
           "prepare": "Preparar este computador",
           "publicKeyHint": "Define esta chave pública como UMEDA_OWNER_PUBLIC_KEY no Worker, implementa o relay e liga-te. Guarda a chave privada deste computador.",
-          "connect": "Inicializar e ligar",
+          "connect": "Ligar",
           "connected": "Ligado ao teu relay"
         }
       },
       "title": "Ligação remota",
-      "description": "Controle remotamente os seus outros dispositivos com sessão iniciada ou ligue-se a um anfitrião remoto por SSH.",
+      "description": "Controla dispositivos remotamente ou liga a máquinas por SSH.",
       "accessRevokedByPeer": "Acesso revogado — o outro dispositivo tem de o restaurar nas suas definições",
       "deviceControlToggleAria": "Alternar controlo de {{name}}",
       "myDevices": {
@@ -6578,8 +6578,8 @@
     "devices": {
       "title": "Ligação de dispositivos",
       "description": "Os dispositivos com sessão iniciada na mesma conta Feishu podem detetar-se mutuamente. Quando «Permitir controlo» está ativado, os seus outros dispositivos podem controlar remotamente o {{appName}} nesta máquina.",
-      "allowControl": "Permitir que dispositivos da mesma conta controlem esta máquina",
-      "allowControlHint": "Quando ativado, outros dispositivos com sessão iniciada na mesma conta podem controlar esta máquina sem aprovação por ligação. É apresentado um indicador visível durante o controlo, e pode desligar a qualquer momento.",
+      "allowControl": "Permitir que dispositivos controlem este computador",
+      "allowControlHint": "Quando ativo, dispositivos ligados ao relay atual podem controlar este computador. Podes desativar a qualquer momento.",
       "keepAwake": "Manter o computador ativo",
       "keepAwakeHint": "Quando ativado, esta máquina não entra em suspensão, para que os Agents em segundo plano e as tarefas agendadas continuem a ser executados (pode continuar a desligar o monitor ou bloquear o ecrã).",
       "linkStatus": {

@@ -18,6 +18,7 @@ const managedEnvKeys = [
   'EXPO_PUBLIC_ENDPOINT_MANIFEST_BASE_URL',
   'EXPO_PUBLIC_ENDPOINT_MANIFEST_PEER_BASE_URL',
   'EXPO_PUBLIC_XDT_OTA_SELFHOST',
+  'EXPO_PUBLIC_UMEDA_MODE',
   'EXPO_PUBLIC_XDT_OTA_URL',
   'EXPO_PUBLIC_CINDY_GOOGLE_WEB_CLIENT_ID',
   'EXPO_PUBLIC_CINDY_GOOGLE_IOS_CLIENT_ID',
@@ -37,6 +38,7 @@ beforeEach(() => {
     managedEnvKeys.map((key) => [key, process.env[key]]),
   );
   for (const key of managedEnvKeys) delete process.env[key];
+  process.env.EXPO_PUBLIC_UMEDA_MODE = '0';
 });
 
 afterEach(() => {
@@ -51,6 +53,67 @@ afterEach(() => {
 });
 
 describe('mobile native app config', () => {
+  // Unit: native isolation cannot be provided by a JS-only startup gate.
+  // Existing EAS/self-host cases do not exercise the standalone build flag.
+  // Minimal regression: standalone mode plus ambient official EAS/OTA settings.
+  it('isolates standalone installs and disables native OTA despite ambient account build settings', () => {
+    const buildConfig = require(resolve(process.cwd(), 'app.config.js'));
+    const regular = buildConfig();
+    process.env.EXPO_PUBLIC_UMEDA_MODE = '1';
+    process.env.EAS_OWNER = 'test-owner';
+    process.env.EAS_PROJECT_ID = '11111111-2222-3333-4444-555555555555';
+    process.env.EXPO_PUBLIC_XDT_OTA_SELFHOST = '1';
+    process.env.CINDY_MOBILE_OTA_NATIVE = '1';
+    const standalone = buildConfig();
+    expect(standalone.ios.bundleIdentifier).not.toBe(regular.ios.bundleIdentifier);
+    expect(standalone.android.package).not.toBe(regular.android.package);
+    expect(standalone.scheme).toBe('umeda');
+    expect(standalone.updates).toEqual({ enabled: false, checkAutomatically: 'NEVER' });
+    expect(standalone.owner).toBeUndefined();
+    expect(standalone.extra.eas).toBeUndefined();
+    expect(standalone.extra.cindy.authRegion).toBe('global');
+    // Xcode rejected personal-team provisioning for these unused account/push capabilities.
+    // Unit: resolved native config is the signing contract; earlier isolation checks missed it.
+    expect(standalone.ios.usesAppleSignIn).toBe(false);
+    expect(standalone.ios.entitlements?.['aps-environment']).toBeUndefined();
+    expect(standalone.ios.entitlements?.['com.apple.developer.applesignin']).toBeUndefined();
+    expect(standalone.ios.entitlements?.['com.apple.developer.usernotifications.communication']).toBeUndefined();
+    const pluginNames = standalone.plugins.map((plugin: string | [string, unknown]) =>
+      Array.isArray(plugin) ? plugin[0] : plugin);
+    expect(pluginNames).not.toContain('expo-apple-authentication');
+    expect(pluginNames).not.toContain('expo-notifications');
+    expect(pluginNames).not.toContain('./plugins/with-communication-notifications');
+
+    delete process.env.EXPO_PUBLIC_UMEDA_MODE;
+    expect(buildConfig()).toEqual(standalone);
+    process.env.EXPO_PUBLIC_UMEDA_MODE = '0';
+    delete process.env.EAS_OWNER;
+    delete process.env.EAS_PROJECT_ID;
+    delete process.env.EXPO_PUBLIC_XDT_OTA_SELFHOST;
+    delete process.env.CINDY_MOBILE_OTA_NATIVE;
+    expect(buildConfig()).toEqual(regular);
+  });
+
+  // Unit: Expo merges prior native entitlements during incremental prebuild.
+  // The resolved-config test alone cannot catch stale capabilities blocking a personal team.
+  // Minimal input: an old account entitlement plist plus the shared App Group.
+  it('removes old account entitlements during incremental standalone prebuild and preserves shares', async () => {
+    const withStandaloneIos = require(resolve(process.cwd(), 'plugins/with-standalone-ios.js'));
+    const config = withStandaloneIos({});
+    const result = await config.mods.ios.entitlements({
+      modRequest: {},
+      modResults: {
+        'aps-environment': 'production',
+        'com.apple.developer.applesignin': ['Default'],
+        'com.apple.developer.usernotifications.communication': true,
+        'com.apple.security.application-groups': ['group.test.personal'],
+      },
+    });
+    expect(result.modResults).toEqual({
+      'com.apple.security.application-groups': ['group.test.personal'],
+    });
+  });
+
   // Unit: OS permission sheets bypass i18next. Resolve the real Expo config
   // through Expo's native localization entry point, including platform scoping.
   it('resolves localized iOS permission resources without leaking them into Android', async () => {

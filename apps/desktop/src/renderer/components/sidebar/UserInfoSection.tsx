@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { BRAND_NAME } from '@cindy/maker-shared/branding';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -8,7 +9,6 @@ import {
   Settings,
   Shield,
   Smartphone,
-  UserPlus,
   UserRound,
 } from 'lucide-react';
 
@@ -79,7 +79,6 @@ export function UserInfoSection({ isCollapsed, onOpenUpdateNotice }: UserInfoSec
   const [accountsMutationAllowed, setAccountsMutationAllowed] = useState(true);
   const [accountsSyncing, setAccountsSyncing] = useState(false);
   const [switchingAccountKey, setSwitchingAccountKey] = useState<string | null>(null);
-  const [addingAccount, setAddingAccount] = useState(false);
   const mobileDownloadButtonRef = useRef<HTMLButtonElement>(null);
   const accountsLoadGenerationRef = useRef(0);
   const { t } = useTranslation();
@@ -100,7 +99,7 @@ export function UserInfoSection({ isCollapsed, onOpenUpdateNotice }: UserInfoSec
   // 头像地址变化(设置页改头像 / 服务端资料更新)时重置加载失败标记,
   // 让新地址有机会渲染,而不是永远停在首字母兜底。
   const isLocal = mode === 'local';
-  const displayName = user?.name ?? (isLocal ? t('settings.userProfile.local.name') : '');
+  const displayName = user?.name ?? (isLocal ? BRAND_NAME : '');
   const moreLabel = t('sidebar.user.moreLabel', { name: displayName });
   const avatarUrl = user?.avatar ?? null;
   useEffect(() => {
@@ -151,21 +150,6 @@ export function UserInfoSection({ isCollapsed, onOpenUpdateNotice }: UserInfoSec
 
   const openSettings = () => {
     if (location.pathname !== '/settings') navigate('/settings');
-  };
-
-  const openAddAccount = async () => {
-    if (addingAccount) return;
-    setAddingAccount(true);
-    try {
-      if (!(await confirmRunningTaskInterruption())) return;
-      await navigate('/add-account', {
-        state: { returnTo: `${location.pathname}${location.search}` },
-      });
-    } catch {
-      toast.error(t('sidebar.accountSwitcher.startFailed'));
-    } finally {
-      setAddingAccount(false);
-    }
   };
 
   const refreshSavedAccounts = async () => {
@@ -308,20 +292,6 @@ export function UserInfoSection({ isCollapsed, onOpenUpdateNotice }: UserInfoSec
         savedAccounts.some((account) => !account.isCurrent) ? (
           <DropdownMenuSeparator />
         ) : null}
-        {mode === 'local' ? (
-          <DropdownMenuItem
-            disabled={addingAccount}
-            onSelect={() => void openAddAccount()}
-            className="gap-2.5"
-          >
-            {addingAccount ? (
-              <Spinner size={16} />
-            ) : (
-              <UserPlus className="h-4 w-4" aria-hidden="true" />
-            )}
-            {addingAccount ? t('sidebar.accountSwitcher.adding') : t('login.signIn')}
-          </DropdownMenuItem>
-        ) : null}
         <DropdownMenuItem onSelect={openSettings} className="gap-2.5">
           <Settings className="h-4 w-4" aria-hidden="true" />
           {t('sidebar.user.menuSettings')}
@@ -340,7 +310,7 @@ export function UserInfoSection({ isCollapsed, onOpenUpdateNotice }: UserInfoSec
     navigate('/settings?tab=remote-control&section=devices');
   };
 
-  const mobileDownloadEntry = (
+  const mobileDownloadEntry = isLocal ? null : (
     <Tip text={t('sidebar.user.downloadMobile')} side="right">
       <button
         ref={mobileDownloadButtonRef}

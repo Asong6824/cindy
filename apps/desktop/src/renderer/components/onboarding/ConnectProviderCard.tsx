@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
  * 出现条件由 useProviderOnboarding 统一判定(零已连接来源 && 未 dismiss);
  * 挂载方(NewMakerDraftRoute)只决定位置与 device-link gate。所有行为都是导航,
  * 不在卡内做 OAuth:
- *   - 推荐行:cloud → 设置定位 Cindy AI(?connect=xd);signed-out/local → /login。
  *   - 主列表/「其他供应商」折叠区按构建区域装配(cn=国内预设主列,global=OAuth
  *     三家主列,见 useProviderOnboarding.primaryRows 注释):内置渠道 → 向导授权步,
  *     预设 → 向导表单步(均 ?connect=<id>)。
@@ -26,7 +25,6 @@ import { cn } from '@/lib/utils';
 import { hasProviderLogo, ProviderLogoMark } from '@/components/icons/ProviderLogoMark';
 import { providerMonogram } from '@/lib/providerModels';
 import { useProviderOnboarding } from '@/hooks/useProviderOnboarding';
-import { useSignInToCindy } from '@/hooks/useSignInToCindy';
 import type { ProviderOnboardingRow } from '@/hooks/useProviderOnboarding';
 import type { ProviderLogoRouting } from '@/components/icons/ProviderLogoMark';
 
@@ -43,14 +41,12 @@ export function ConnectProviderCard({ className, dismissible = true }: {
 }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const signInToCindy = useSignInToCindy();
   const onboarding = useProviderOnboarding({ loadPresets: true, dismissible });
   const [othersOpen, setOthersOpen] = useState(false);
 
   if (!onboarding.visible) return null;
 
-  const { authMode, xdProvider, detectedRows, primaryRows, moreRows } = onboarding;
-  const cloudMode = authMode === 'cloud';
+  const { detectedRows, primaryRows, moreRows } = onboarding;
   const goConnect = (id: string) =>
     navigate(`/settings?tab=providers&connect=${encodeURIComponent(id)}`);
 
@@ -108,22 +104,6 @@ export function ConnectProviderCard({ className, dismissible = true }: {
             />
           );
         })}
-        {/* 推荐行:Cindy AI(cloud)/ 登录 Cindy(signed-out・local) */}
-        <ProviderRow
-          icon={rowIcon('xd', xdProvider?.name ?? 'Cindy AI')}
-          label={
-            cloudMode
-              ? (xdProvider?.name ?? t('onboarding.connectProvider.cindy.title'))
-              : t('onboarding.connectProvider.cindy.loginTitle')
-          }
-          sub={
-            cloudMode
-              ? t('onboarding.connectProvider.cindy.desc')
-              : t('onboarding.connectProvider.cindy.loginDesc')
-          }
-          badge={t('onboarding.connectProvider.recommendedLabel')}
-          onClick={() => (cloudMode ? goConnect('xd') : void signInToCindy())}
-        />
         {primaryRows.map(renderRow)}
 
         {moreRows.length > 0 && (

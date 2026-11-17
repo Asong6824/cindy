@@ -1,5 +1,6 @@
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
+import { UMEDA_STANDALONE } from './standalone';
 
 import {
   CLIENT_ENDPOINT_KEYS,
@@ -52,12 +53,13 @@ function configuredValue(key: keyof typeof configuredPublicEnv): string {
 }
 
 export const AUTH_REGION: CindyAuthRegion = (() => {
+  if (UMEDA_STANDALONE) return 'global';
   const value = configuredValue('EXPO_PUBLIC_CINDY_AUTH_REGION');
   return value === 'global' ? 'global' : value === 'dev' ? 'dev' : 'cn';
 })();
 export const BUILD_AUTH_REGION: ClientEndpointRegion =
   AUTH_REGION === 'global' ? 'global' : 'cn';
-export const APP_SCHEME = { cn: 'cindycn', global: 'cindy', dev: 'cindydev' }[
+export const APP_SCHEME = UMEDA_STANDALONE ? 'umeda' : { cn: 'cindycn', global: 'cindy', dev: 'cindydev' }[
   AUTH_REGION
 ];
 export const MOBILE_REDIRECT_URL = `${APP_SCHEME}://auth`;

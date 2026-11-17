@@ -5,7 +5,7 @@ import { getMobileAuthOwner, isMobileAuthOwnerCurrent, setMobileAuthOwner } from
 import { ApiError, apiFetchRaw } from '@/api/client';
 import { UMEDA_LOCAL_OWNER } from '@/config/standalone';
 import { getActiveSelfHostedRelay, selfHostedRelayAuthorizationFor, waitForSelfHostedRelayRoute } from '@/device-link/selfHostedRelayRouting';
-import '@/device-link/selfHostedRelay';
+import { configureStandaloneRelay } from '@/device-link/selfHostedRelay';
 import { AskCardAuthContext, type AskCardAuth } from '@/session/askCardAuth';
 import { i18n } from '@/i18n';
 
@@ -33,6 +33,7 @@ export function StandaloneAuthProvider({ context: ContextProvider, children }: {
     setMobileAuthOwner(UMEDA_LOCAL_OWNER, 'global');
     const owner = getMobileAuthOwner();
     void localDeviceIdentity().then(async deviceId => {
+      await configureStandaloneRelay(deviceId);
       await waitForSelfHostedRelayRoute();
       if (active && isMobileAuthOwnerCurrent(owner)) setState({ initialized: true, deviceId, generation: owner.generation });
     }).catch(() => { if (active) setFailure(new Error(i18n.t('apiErrors.requestFailed'))); });
@@ -54,7 +55,7 @@ export function StandaloneAuthProvider({ context: ContextProvider, children }: {
       const owner = getMobileAuthOwner();
       const relay = getActiveSelfHostedRelay();
       if (owner.accountId !== UMEDA_LOCAL_OWNER || !relay || !path.startsWith('/api/device-link/')
-        || selfHostedRelayAuthorizationFor(opts.baseUrl)?.kind !== 'relay') return noCloud();
+        || !['relay', 'open'].includes(selfHostedRelayAuthorizationFor(opts.baseUrl)?.kind ?? '')) return noCloud();
       const assertCurrent = () => {
         if (!isMobileAuthOwnerCurrent(owner)) throw new ApiError('ACCOUNT_CHANGED', 0, i18n.t('apiErrors.requestFailed'));
         opts.assertCurrent?.();

@@ -42,7 +42,8 @@ export function deviceLinkApiFetch<T>(
   return serverApiFetch<T>(apiPath, {
     ...opts,
     baseUrl: relay.baseUrl,
-    authorization: `CindyRelay ${relay.credential}`,
+    authorization: relay.authMode === 'none' ? null : `CindyRelay ${relay.credential}`,
+    headers: { ...opts.headers, ...(relay.authMode === 'none' ? { 'x-umeda-device-id': relay.deviceId } : {}) },
     skipAutoRefresh: true,
     skipSessionInvalidation: true,
   });

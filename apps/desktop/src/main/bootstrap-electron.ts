@@ -6509,6 +6509,7 @@ const registerIpcHandlers = () => {
       let pendingCompletion: Promise<authManager.AuthState> | null = null;
       const state = await authManager
         .initialize({
+          localOnly: true,
           onColdStartPending: (completion) => {
             pendingCompletion = completion;
           },

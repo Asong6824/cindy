@@ -28,6 +28,7 @@ import {
 } from '@/auth/authOwnerGeneration';
 import { deleteSecureItem, getSecureItem, setSecureItem } from '@/auth/secureStorage';
 import { mobileDebugLog } from '@/debug/mobileDebugLog';
+import { UMEDA_STANDALONE } from '@/config/standalone';
 
 import {
   getActiveSelfHostedRelay,
@@ -155,6 +156,12 @@ function syncOwner(): void {
   if (owner.accountKey === loadedAccountKey) return;
   loadedAccountKey = owner.accountKey;
   const sequence = ++loadSequence;
+  if (UMEDA_STANDALONE) {
+    currentConfig = null;
+    setActiveSelfHostedRelay(null);
+    setSelfHostedRelayLoading(false);
+    return;
+  }
   // 上一个账号的中转不能被新账号沿用,哪怕只是读设置的这一小段时间。
   currentConfig = null;
   setActiveSelfHostedRelay(null);
@@ -192,6 +199,27 @@ function routeFromConfig(config: StoredRelayConfig, secrets: StoredRelaySecrets 
 
 subscribeMobileAuthOwner(syncOwner);
 syncOwner();
+
+/** Personal install: only a public URL and routing ID, no pairing or secure-store reads. */
+export async function configureStandaloneRelay(deviceId: string): Promise<void> {
+  if (!UMEDA_STANDALONE) return;
+  const owner = getMobileAuthOwner();
+  if (!owner.accountKey || owner.switching) return;
+  setSelfHostedRelayLoading(true);
+  try {
+    const previous = await AsyncStorage.getItem(configKey(owner.accountKey));
+    let metadata: { baseUrl?: string; relayId?: string; name?: string } = {};
+    try { metadata = previous ? JSON.parse(previous) : {}; } catch { /* URL can still come from the personal build. */ }
+    const baseUrl = normalizeRelayBaseUrl(process.env.EXPO_PUBLIC_UMEDA_RELAY_URL || metadata.baseUrl || '');
+    if (!isMobileAuthOwnerCurrent(owner)) return;
+    setActiveSelfHostedRelay(baseUrl ? {
+      relayId: metadata.relayId ?? 'umeda', name: metadata.name ?? 'Umeda', baseUrl,
+      authMode: 'none', deviceId, credential: null, signing: null,
+    } : null);
+  } finally {
+    if (isMobileAuthOwnerCurrent(owner)) setSelfHostedRelayLoading(false);
+  }
+}
 
 function assertOwnerCurrent(owner: MobileAuthOwnerGeneration): void {
   if (!owner.accountKey || owner.switching || !isMobileAuthOwnerCurrent(owner)) {

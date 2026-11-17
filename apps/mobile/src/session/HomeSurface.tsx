@@ -3614,6 +3614,7 @@ function HomeScreenContent({ active = true, width, newSessionInSystemBar = false
         visible={deviceMenuOpen}
       />}</MountOnFirstOpen>
       <MountOnFirstOpen open={chromeMenuOpen}>{() => <HomeChromeDrawer
+        accountActionsAvailable={!auth.isLocalMode}
         loggingOut={loggingOut}
         onClose={() => {
           pendingMenuActionRef.current = null;

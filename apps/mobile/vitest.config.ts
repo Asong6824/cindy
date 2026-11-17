@@ -58,6 +58,8 @@ export default defineConfig({
     // hangs still surface promptly.
     testTimeout: process.platform === 'win32' ? 20_000 : 5_000,
     env: {
+      // Legacy account tests opt in explicitly; standalone.test.ts covers the personal build.
+      EXPO_PUBLIC_UMEDA_MODE: '0',
       EXPO_PUBLIC_XDT_DEVICE_LINK_API_BASE_URL: 'https://relay.example.invalid',
       EXPO_PUBLIC_XDT_MOBILE_VOICE_LITELLM_BASE_URL: 'https://gateway.example.invalid',
       EXPO_PUBLIC_ENDPOINT_MANIFEST_BASE_URL:

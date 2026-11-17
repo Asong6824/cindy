@@ -53,6 +53,22 @@ async function call(base: string, method: string, pathname: string, init: { cred
 }
 
 async function main(): Promise<number> {
+  if (process.argv.includes('--open')) {
+    const relay = await (await import('./cloudflare-runtime')).startCloudflareRelay(undefined, undefined, true);
+    try {
+      return await new Promise<number>((resolve) => {
+        const child = spawn(process.execPath, ['apps/mobile/scripts/device-link-reconnect-smoke.mjs', '--interop'], {
+          cwd: repoRoot, stdio: 'inherit', env: {
+            ...process.env, CINDY_TEST_RELAY_URL: `${relay.localUrl.replace(/^http/, 'ws')}/api/device-link/ws`,
+            // Public readiness labels, not credentials; None sends no Authorization header.
+            CINDY_TEST_HOST_TOKEN: 'interop-host', CINDY_TEST_CONTROLLER_TOKEN: 'interop-controller',
+            CINDY_TEST_AUTH_SCHEME: 'None', CINDY_TEST_FRAME_AUTH: '',
+          },
+        });
+        child.on('exit', code => resolve(code ?? 1)); child.on('error', () => resolve(1));
+      });
+    } finally { await relay.close(); }
+  }
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'cindy-relay-interop-'));
   const owner = createDeviceCredential();
   const ownerKey = createRelaySigningKey(crypto);

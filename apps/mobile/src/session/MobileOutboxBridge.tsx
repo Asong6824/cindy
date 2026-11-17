@@ -25,6 +25,7 @@ import {
 } from "./durableOutboxDelivery";
 import {
   mobileDurableOutbox,
+  mobileOutboxOwnerKey,
   isDurableOutboxCreationHeld,
   discardOutboxUploads,
   cleanupOutboxResources,
@@ -71,10 +72,7 @@ export function MobileOutboxBridge() {
     getMobileAuthOwner,
     getMobileAuthOwner,
   );
-  const accountId =
-    auth.isAuthenticated && auth.user?.id?.trim() === owner.accountId
-      ? owner.accountKey
-      : "";
+  const accountId = mobileOutboxOwnerKey(auth, owner);
   const runnerRef = useRef<ReturnType<
     typeof createDurableOutboxDelivery
   > | null>(null);

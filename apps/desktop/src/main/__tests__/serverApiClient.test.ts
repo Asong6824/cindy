@@ -41,6 +41,17 @@ describe('serverApiFetch', () => {
     vi.clearAllMocks();
   });
 
+  // Unit: explicit no-auth Umeda requests must not fall back to the account token.
+  // Existing custom-authorization tests only exercised nonempty credentials.
+  it('omits all authorization when the caller explicitly selects no authentication', async () => {
+    mocks.getAccessToken.mockReturnValue('fake-account-token');
+    mocks.netFetch.mockResolvedValueOnce(Response.json({ devices: [] }));
+    await serverApiFetch('/api/device-link/devices', { baseUrl: 'https://relay.example.invalid', authorization: null,
+      headers: { Authorization: 'fake-old-credential' }, skipAutoRefresh: true, skipSessionInvalidation: true });
+    expect(mocks.netFetch.mock.calls[0][1].headers).not.toHaveProperty('Authorization');
+    expect(mocks.getAccessToken).not.toHaveBeenCalled();
+  });
+
   // Unit: cancellation must cover HTTP and a shared auth refresh. Existing retry
   // tests did not abort during either stage, allowing a late query after its deadline.
   it.each(['fetch', 'refresh'] as const)('cancels during %s without a late HTTP retry or logout', async stage => {

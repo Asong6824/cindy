@@ -1170,7 +1170,7 @@
     "closePermissionGuide": "Cerrar",
     "title": "Escritorio remoto",
     "allow": "Permitir escritorio remoto",
-    "allowHint": "Permita que sus dispositivos registrados vean y operen todas las aplicaciones en esta computadora. También habilite el control del dispositivo arriba.",
+    "allowHint": "Permite que los dispositivos conectados vean y controlen todas las aplicaciones de este equipo. Activa también el control de dispositivos de arriba.",
     "permissionHint": "En la computadora, permita la grabación de pantalla y la accesibilidad en la configuración del sistema, luego vuelva a conectarse.",
     "inputUnsupported": "El entorno de escritorio actual de esta computadora no admite el control remoto del teclado y el ratón en Cindy.",
     "controlUnavailable": "La computadora remota no puede aceptar entradas. Verifique sus permisos de control y conexión, luego vuelva a conectarse.",
@@ -6238,15 +6238,15 @@
         },
         "workers": {
           "title": "URL del Worker de Cloudflare",
-          "hint": "Conecta tu propio relé en modo local. Primero prepara este ordenador.",
+          "hint": "Conecta directamente con tu relé en modo local.",
           "prepare": "Preparar este ordenador",
           "publicKeyHint": "Configura esta clave pública como UMEDA_OWNER_PUBLIC_KEY en el Worker, despliega el relé y conecta. Conserva la clave privada de este ordenador.",
-          "connect": "Inicializar y conectar",
+          "connect": "Conectar",
           "connected": "Conectado a tu relé"
         }
       },
       "title": "Conexión remota",
-      "description": "Controla de forma remota tus otros dispositivos con sesión iniciada o conéctate a un host remoto por SSH.",
+      "description": "Controla dispositivos de forma remota o conecta con equipos por SSH.",
       "accessRevokedByPeer": "Acceso revocado: el otro dispositivo debe restaurarlo en su configuración",
       "deviceControlToggleAria": "Activar o desactivar el control de {{name}}",
       "myDevices": {
@@ -6578,8 +6578,8 @@
     "devices": {
       "title": "Enlace de dispositivo",
       "description": "Los dispositivos que hayan iniciado sesión con la misma cuenta de Feishu pueden detectarse entre sí. Al activar \"Permitir control\", tus otros dispositivos podrán controlar {{appName}} de forma remota en esta computadora.",
-      "allowControl": "Permitir que los dispositivos de la misma cuenta controlen esta computadora",
-      "allowControlHint": "Cuando está activado, otros dispositivos con la misma cuenta pueden controlar esta computadora sin aprobación por conexión. Se muestra un indicador visible mientras se controla y puedes desconectarla en cualquier momento.",
+      "allowControl": "Permitir que los dispositivos controlen este equipo",
+      "allowControlHint": "Los dispositivos conectados al relé actual pueden controlar este equipo mientras esté activado. Puedes desactivarlo en cualquier momento.",
       "keepAwake": "Mantener la computadora activa",
       "keepAwakeHint": "Cuando está activado, esta computadora no entra en suspensión. Los Agents en segundo plano y las tareas programadas siguen ejecutándose. Puedes apagar la pantalla o bloquearla.",
       "linkStatus": {

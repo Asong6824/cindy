@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { DurableObject } from 'cloudflare:workers';
 import { PROTOCOL_VERSION } from '@cindy/device-link-protocol';
 import { verifyRelayInitialization, type RelayInitialization } from '@cindy/device-link';
 import { nodeRelayAuthCrypto } from '@cindy/device-link/node-relay-crypto';
@@ -13,32 +14,14 @@ import { DurableRelayStore } from './store';
 import { DurableSocket } from './socket';
 import { DurableMedia } from './media';
 import type { EdgeSocket, ObjectContext, RelayEnvironment } from './runtime';
+import { OpenRelay } from './openRelay';
+import { readJson } from './requestJson';
 
 const PREFIX = '/api/device-link';
 const VERSION = `${RELAY_VERSION}-umeda.1`;
 
 function json(body: unknown, status = 200): Response {
   return Response.json(body, { status, headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
-}
-
-async function readJson(request: Request): Promise<Record<string, unknown>> {
-  const reader = request.body?.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  if (reader) try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > 64 * 1024) { await reader.cancel(); throw new RelayError('PAYLOAD_TOO_LARGE', 'request body is too large'); }
-      chunks.push(value);
-    }
-  } finally { reader.releaseLock(); }
-  try {
-    const value: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
-    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error();
-    return value as Record<string, unknown>;
-  } catch { throw new RelayError('BAD_REQUEST', 'request body must be a JSON object'); }
 }
 
 /** One named object owns the private relay: all devices reach the same coordinator. */
@@ -48,7 +31,7 @@ export default {
   },
 };
 
-export class UmedaRelay {
+export class UmedaRelay extends DurableObject<RelayEnvironment> {
   private store?: DurableRelayStore;
   private hub?: Hub;
   private pairing?: Pairing;
@@ -57,8 +40,15 @@ export class UmedaRelay {
   private initializing: Promise<void> | null = null;
   private readonly sockets = new Map<EdgeSocket, DurableSocket>();
   private readonly ready: Promise<void>;
+  private readonly open?: OpenRelay;
 
   constructor(private readonly ctx: ObjectContext, private readonly env: RelayEnvironment) {
+    super(ctx, env);
+    if (env.UMEDA_AUTH_MODE === 'none') {
+      this.open = new OpenRelay(ctx);
+      this.ready = Promise.resolve();
+      return;
+    }
     this.ready = ctx.blockConcurrencyWhile(async () => {
       const state = await ctx.storage.get<RelayStateFile>('relay-state');
       if (!state) return;
@@ -95,6 +85,7 @@ export class UmedaRelay {
   }
 
   async fetch(request: Request): Promise<Response> {
+    if (this.open) return this.open.fetch(request);
     await this.ready;
     try {
       const response = await this.handle(request);
@@ -226,6 +217,7 @@ export class UmedaRelay {
   }
 
   async webSocketMessage(socket: EdgeSocket, message: string | ArrayBuffer): Promise<void> {
+    if (this.open) return this.open.webSocketMessage(socket, message);
     await this.ready;
     const adapter = this.sockets.get(socket);
     const attachment = socket.deserializeAttachment();
@@ -239,6 +231,7 @@ export class UmedaRelay {
   }
 
   async webSocketClose(socket: EdgeSocket): Promise<void> {
+    if (this.open) return this.open.webSocketClose(socket);
     await this.ready;
     this.sockets.get(socket)?.emit('close');
     this.sockets.delete(socket);
@@ -249,6 +242,7 @@ export class UmedaRelay {
   async webSocketError(socket: EdgeSocket): Promise<void> { socket.close(1011, 'connection failed'); await this.webSocketClose(socket); }
 
   async alarm(): Promise<void> {
+    if (this.open) return this.open.alarm();
     await this.ready;
     this.hub?.closeIdle();
     await this.media?.sweep();

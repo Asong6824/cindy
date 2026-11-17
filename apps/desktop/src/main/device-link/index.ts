@@ -797,7 +797,9 @@ function normalizeDeviceInfoText(value: string | undefined): string | null {
 
 function wsUrl(): string {
   // WS URL 由 relay HTTP base 推(http→ws / https→wss)
-  return deviceLinkApiBase().replace(/^http/, 'ws') + WS_PATH;
+  const url = deviceLinkApiBase().replace(/^http/, 'ws') + WS_PATH;
+  const relay = activeSelfHostedRelay();
+  return relay?.authMode === 'none' ? `${url}?deviceId=${encodeURIComponent(relay.deviceId)}` : url;
 }
 
 /** Host integrations that consume device-link lifecycle state. */
@@ -883,14 +885,14 @@ export function initDeviceLinkService(options: DeviceLinkServiceOptions = {}): v
     retainDirectPathsOnRelayLoss: true,
     getWsUrl: wsUrl,
     // 自建中转用中转凭证(CindyRelay),官方中转用账号 token(Bearer);两者每次建连前同一轮取值。
-    authorizationScheme: () => (activeSelfHostedRelay() ? 'CindyRelay' : 'Bearer'),
+    authorizationScheme: () => (activeSelfHostedRelay()?.authMode === 'none' ? 'None' : activeSelfHostedRelay() ? 'CindyRelay' : 'Bearer'),
     // 自建中转:每条对端消息签名,收到的对端消息核对签名(中转无法冒充设备);官方中转返回 null,行为不变。
     frameAuth: currentRelayFrameAuth,
     getToken: async () => {
       // Prepare the name before the first hello without blocking Electron's main thread.
       await deviceNameReady;
       const relay = activeSelfHostedRelay();
-      if (relay) return !isAppSessionBoundaryPending() && canConnectDeviceLink() ? relay.credential : null;
+      if (relay) return !isAppSessionBoundaryPending() && canConnectDeviceLink() ? (relay.authMode === 'none' ? relay.deviceId : relay.credential) : null;
       return accountToken();
     },
   }, {

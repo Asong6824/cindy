@@ -27,10 +27,11 @@ vi.mock('@/lib/logger', () => ({
 }));
 
 vi.mock('@/components/error/LocalDbFatalScreen', () => ({
-  LocalDbFatalScreen: ({ onBackToLogin }: { onBackToLogin?: () => void }) => (
-    <button type="button" onClick={onBackToLogin}>
-      back to login
-    </button>
+  LocalDbFatalScreen: ({ onBackToLogin, onRetry }: { onBackToLogin?: () => void; onRetry?: () => void }) => (
+    <div>
+      {onBackToLogin && <button onClick={onBackToLogin}>back to login</button>}
+      <button onClick={onRetry}>retry database</button>
+    </div>
   ),
 }));
 
@@ -52,7 +53,7 @@ describe('LocalDbGate fatal recovery', () => {
     };
   });
 
-  it('navigates back to login even when leaving local mode rejects', async () => {
+  it('retries the personal database without discarding its local identity', async () => {
     render(
       <MemoryRouter initialEntries={['/app']}>
         <Routes>
@@ -64,13 +65,11 @@ describe('LocalDbGate fatal recovery', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'back to login' }));
-
-    await waitFor(() => expect(screen.getByText('login page')).toBeTruthy());
-    expect(mocks.exitLocalMode).toHaveBeenCalledOnce();
-    expect(mocks.warn).toHaveBeenCalledWith(
-      'failed to leave the current session from local-db fatal screen',
-      expect.any(Error),
-    );
+    fireEvent.click(await screen.findByRole('button', { name: 'retry database' }));
+    await waitFor(() => expect(window.electronAPI.localDb.ensureReady).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('button', { name: 'back to login' })).toBeNull();
+    expect(screen.queryByText('login page')).toBeNull();
+    expect(mocks.exitLocalMode).not.toHaveBeenCalled();
+    expect(mocks.logout).not.toHaveBeenCalled();
   });
 });

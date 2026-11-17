@@ -8,6 +8,7 @@ const authState = vi.hoisted(() => ({
   current: {
     mode: 'cloud' as 'signed-out' | 'local' | 'cloud',
     isInitializing: false,
+    ownerBoundaryPending: false,
     dataOwnerId: 'user-1' as string | null,
     canEnterApp: true,
   },
@@ -15,6 +16,10 @@ const authState = vi.hoisted(() => ({
 
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => authState.current,
+}));
+
+vi.mock('@/components/error/AppCrashScreen', () => ({
+  AppCrashScreen: () => <div data-testid="startup-recovery" />,
 }));
 
 import { ProtectedRoute } from '../ProtectedRoute';
@@ -38,6 +43,7 @@ describe('ProtectedRoute', () => {
     authState.current = {
       mode: 'cloud',
       isInitializing: false,
+      ownerBoundaryPending: false,
       dataOwnerId: 'user-1',
       canEnterApp: true,
     };
@@ -47,6 +53,7 @@ describe('ProtectedRoute', () => {
     authState.current = {
       mode: 'cloud',
       isInitializing: false,
+      ownerBoundaryPending: false,
       dataOwnerId: 'user-1',
       canEnterApp: true,
     };
@@ -59,23 +66,27 @@ describe('ProtectedRoute', () => {
     authState.current = {
       mode: 'cloud',
       isInitializing: false,
+      ownerBoundaryPending: true,
       dataOwnerId: 'user-1',
       canEnterApp: false,
     };
     renderAt('/');
-    expect(screen.getByTestId('login-page')).toBeTruthy();
+    expect(screen.queryByTestId('login-page')).toBeNull();
+    expect(screen.queryByTestId('startup-recovery')).toBeNull();
     expect(screen.queryByTestId('app-shell')).toBeNull();
   });
 
-  it('sends a real signed-out session to login', () => {
+  it('shows recovery instead of the retired login for a failed local startup', () => {
     authState.current = {
       mode: 'signed-out',
       isInitializing: false,
+      ownerBoundaryPending: false,
       dataOwnerId: null,
       canEnterApp: false,
     };
     renderAt('/');
-    expect(screen.getByTestId('login-page')).toBeTruthy();
+    expect(screen.queryByTestId('login-page')).toBeNull();
+    expect(screen.getByTestId('startup-recovery')).toBeTruthy();
     expect(screen.queryByTestId('app-shell')).toBeNull();
   });
 
@@ -83,6 +94,7 @@ describe('ProtectedRoute', () => {
     authState.current = {
       mode: 'local',
       isInitializing: false,
+      ownerBoundaryPending: false,
       dataOwnerId: 'local-v1',
       canEnterApp: true,
     };

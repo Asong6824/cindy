@@ -110,7 +110,7 @@ function create(relay: ActiveSelfHostedRelay): Current {
 /** DeviceLinkClient 每帧调用:官方中转返回 null(不签名、不核对)。 */
 export function currentRelayFrameAuth(): DeviceLinkFrameAuth | null {
   const relay = activeSelfHostedRelay();
-  if (!relay) {
+  if (!relay || relay.authMode === 'none') {
     dispose();
     return null;
   }

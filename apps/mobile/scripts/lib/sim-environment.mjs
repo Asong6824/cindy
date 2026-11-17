@@ -24,14 +24,16 @@ export function readSimEnvironment(mobileDir, buildEnv, systemEnv = process.env)
     ?? projectEnv.env.EXPO_PUBLIC_LOGIN_SCENARIO?.trim() ?? '';
   const uiMock = ['1', 'true', 'yes'].includes(
     (systemEnv[UI_MOCK_ENV] ?? projectEnv.env[UI_MOCK_ENV] ?? '').trim().toLowerCase());
+  const standalone = (systemEnv.EXPO_PUBLIC_UMEDA_MODE ?? projectEnv.env.EXPO_PUBLIC_UMEDA_MODE) !== '0';
   const files = {};
   for (const name of ['.env', 'scripts/self-host-regions.json']) {
     const file = join(mobileDir, name);
     files[name] = existsSync(file) ? readFileSync(file, 'utf8') : null;
   }
   return { loginScenario, uiMock, envFingerprint: metroEnvironmentFingerprint({
-    // Only a mock Metro adds the key, so existing real-data fingerprints stay valid.
-    env: { ...buildEnv, EXPO_PUBLIC_LOGIN_SCENARIO: loginScenario, ...(uiMock ? { [UI_MOCK_ENV]: '1' } : {}) },
+    // Only enabled variants add keys, preserving existing account-mode fingerprints.
+    env: { ...buildEnv, EXPO_PUBLIC_LOGIN_SCENARIO: loginScenario, ...(uiMock ? { [UI_MOCK_ENV]: '1' } : {}),
+      ...(standalone ? { EXPO_PUBLIC_UMEDA_MODE: '1' } : {}) },
     files,
   }) };
 }

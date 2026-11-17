@@ -1153,7 +1153,7 @@
     "closePermissionGuide": "Schließen",
     "title": "Remotedesktop",
     "allow": "Remotedesktop erlauben",
-    "allowHint": "Erlaube deinen angemeldeten Geräten, alle Apps auf diesem Computer anzuzeigen und zu bedienen. Aktiviere oben auch die Gerätesteuerung.",
+    "allowHint": "Verbundenen Geräten erlauben, alle Apps auf diesem Computer anzuzeigen und zu steuern. Die Gerätesteuerung oben muss ebenfalls aktiviert sein.",
     "permissionHint": "Erlaube auf dem Computer in den Systemeinstellungen die Bildschirmaufnahme und die Bedienungshilfen und stelle dann die Verbindung erneut her.",
     "inputUnsupported": "Die aktuelle Desktopumgebung dieses Computers unterstützt die Fernsteuerung von Tastatur und Maus in Cindy nicht.",
     "controlUnavailable": "Der entfernte Computer kann keine Eingaben annehmen. Prüfe seine Steuerungsberechtigungen und die Verbindung und verbinde dich dann erneut.",
@@ -6177,15 +6177,15 @@
         },
         "workers": {
           "title": "Cloudflare-Worker-URL",
-          "hint": "Verbinde deinen eigenen Relay im lokalen Modus. Bereite zuerst diesen Computer vor.",
+          "hint": "Im lokalen Modus direkt mit deinem Relay verbinden.",
           "prepare": "Diesen Computer vorbereiten",
           "publicKeyHint": "Setze diesen öffentlichen Schlüssel im Worker als UMEDA_OWNER_PUBLIC_KEY, stelle den Relay bereit und verbinde dich dann. Bewahre den privaten Schlüssel dieses Computers auf.",
-          "connect": "Initialisieren und verbinden",
+          "connect": "Verbinden",
           "connected": "Mit deinem Relay verbunden"
         }
       },
       "title": "Remote-Verbindung",
-      "description": "Steuere deine anderen angemeldeten Geräte aus der Ferne oder verbinde dich per SSH mit einem Remote-Host.",
+      "description": "Geräte fernsteuern oder per SSH mit entfernten Rechnern verbinden.",
       "accessRevokedByPeer": "Zugriff widerrufen — das andere Gerät muss ihn in seinen Einstellungen wiederherstellen",
       "deviceControlToggleAria": "Steuerung für {{name}} umschalten",
       "myDevices": {
@@ -6513,8 +6513,8 @@
     "devices": {
       "title": "Geräteverknüpfung",
       "description": "Geräte, die mit demselben Feishu-Konto angemeldet sind, können einander finden. Sobald „Steuerung erlauben“ aktiviert ist, können deine anderen Geräte {{appName}} auf diesem Computer fernsteuern.",
-      "allowControl": "Geräten mit demselben Konto die Steuerung dieses Computers erlauben",
-      "allowControlHint": "Wenn aktiviert, können andere Geräte mit demselben Konto diesen Computer ohne Freigabe jeder einzelnen Verbindung steuern. Während der Fernsteuerung wird ein sichtbarer Hinweis angezeigt, und du kannst die Verbindung jederzeit trennen.",
+      "allowControl": "Geräten die Steuerung dieses Computers erlauben",
+      "allowControlHint": "Bei aktivierter Option können Geräte am aktuellen Relay diesen Computer steuern. Du kannst dies jederzeit ausschalten.",
       "keepAwake": "Computer wach halten",
       "keepAwakeHint": "Wenn aktiviert, wechselt dieser Computer nicht in den Ruhezustand, sodass Agents im Hintergrund und geplante Aufgaben weiterlaufen (du kannst weiterhin das Display ausschalten oder den Bildschirm sperren).",
       "linkStatus": {

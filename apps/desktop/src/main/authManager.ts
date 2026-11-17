@@ -322,6 +322,8 @@ export interface AuthState {
 }
 
 export interface AuthInitializeOptions {
+  /** Personal desktop: restore the local owner without reading Cindy account credentials. */
+  localOnly?: boolean;
   /**
    * 冷启动 refresh 超过 UI 等待上限时触发。renderer 仍会先拿到未登录兜底态，
    * 但 dev restart 必须继续等待这个最终结果：迟到登录后还要观察 localDb migration。
@@ -4734,8 +4736,12 @@ export async function initialize(options: AuthInitializeOptions = {}): Promise<A
   }
   // Local mode is a committed account-free session. It must win before any
   // persisted cloud refresh token is inspected or any auth network call runs.
-  if (getActiveAppSession().mode === 'local') {
+  if (options.localOnly || getActiveAppSession().mode === 'local') {
     await recoverAccountFreeOwnerAtStartup('local', 'cold-start-local-recovery');
+    if (options.localOnly) {
+      notifyRenderer();
+      notifyAuthListeners();
+    }
     return snapshotAuthState();
   }
   // 进程内已登录快路径:auth 状态是 main 进程全局的,主窗登录后其它 renderer

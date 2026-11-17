@@ -1141,7 +1141,7 @@
     "closePermissionGuide": "關閉",
     "title": "遠端桌面",
     "allow": "允許遠端桌面",
-    "allowHint": "允許已登入的同帳號裝置檢視和操作這台電腦的所有應用程式。需同時開啟上方的裝置控制。",
+    "allowHint": "允許連接的裝置查看和操作這台電腦的所有應用程式。需同時開啟上方的裝置控制。",
     "permissionHint": "請在電腦的系統設定中允許螢幕錄製和輔助使用，然後重新連線。",
     "inputUnsupported": "Cindy 暫不支援這台電腦目前桌面環境的遠端鍵鼠控制。",
     "controlUnavailable": "遠端鍵鼠控制暫時無法使用，請重新連線。",
@@ -6134,15 +6134,15 @@
         },
         "workers": {
           "title": "Cloudflare Worker 位址",
-          "hint": "在本機模式下連接自己的中轉。先準備這台電腦。",
+          "hint": "在本機模式下直接連接自己的中繼。",
           "prepare": "準備這台電腦",
           "publicKeyHint": "將此公鑰設為 Worker 的 UMEDA_OWNER_PUBLIC_KEY，部署中轉後再連接。請保留這台電腦的私鑰。",
-          "connect": "初始化並連接",
+          "connect": "連接",
           "connected": "已連接到你的中轉"
         }
       },
       "title": "遠端連線",
-      "description": "在同帳號的裝置之間互相遠端操控，或透過 SSH 連線遠端主機。",
+      "description": "在裝置之間互相遠端操作，或透過 SSH 連接遠端主機。",
       "accessRevokedByPeer": "訪問權限已被撤銷，需對方在選項中恢復",
       "deviceControlToggleAria": "切換是否控制 {{name}}",
       "myDevices": {
@@ -6470,8 +6470,8 @@
     "devices": {
       "title": "裝置互聯",
       "description": "同一飛書帳號登入的裝置可以互相發現；開啟「允許控制」後，你的其它裝置可以遠端連線本機的 {{appName}}。",
-      "allowControl": "允許同帳號裝置控制本機",
-      "allowControlHint": "開啟後，使用同一帳號登入的其它裝置無需逐次確認即可控制本機；本機會顯示遠端控制提示，可隨時斷開。",
+      "allowControl": "允許裝置控制本機",
+      "allowControlHint": "開啟後，連接至目前中繼的裝置可以控制本機；可隨時關閉。",
       "keepAwake": "保持電腦喚醒",
       "keepAwakeHint": "開啟後本機不會進入休眠，後臺的 Agent 與定時任務可持續執行(仍可關閉顯示器 / 鎖屏)。",
       "linkStatus": {
