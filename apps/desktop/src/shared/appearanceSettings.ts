@@ -1,4 +1,7 @@
 import { DEFAULT_FONT_SIZES } from './generated/appearance-tokens';
+import { resolveAppearanceScheme } from '@cindy/maker-shared/appearance-scheme';
+
+const schemeFontSizes = resolveAppearanceScheme().desktop.fontSizes;
 
 /**
  * Desktop appearance preferences shared by main, preload and renderer.
@@ -73,21 +76,6 @@ export interface AppearanceSettings {
 export const DEFAULT_TERMINAL_FONT_FAMILY =
   '"SF Mono", Menlo, Monaco, "Cascadia Code", "Courier New", monospace';
 
-export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
-  uiFamily: '',
-  codeFamily: '',
-  uiSize: DEFAULT_FONT_SIZES.uiSize,
-  codeSize: DEFAULT_FONT_SIZES.codeSize,
-  terminalFamily: '',
-  terminalSize: 13,
-  windowZoom: 1,
-  wallpaperId: 'none',
-  wallpaperOverlay: 0.2,
-  wallpaperMotion: 'static',
-  appIcon: 'default',
-  customWallpaperUrl: '',
-};
-
 export const APPEARANCE_LIMITS = {
   uiSize: { min: 12, max: 24 },
   codeSize: { min: 10, max: 24 },
@@ -97,6 +85,26 @@ export const APPEARANCE_LIMITS = {
   wallpaperVisibility: { min: 0, max: 1, step: 0.01 },
   wallpaperBlur: { min: 0, max: 20, step: 1 },
 } as const;
+
+function configuredFontDefault(key: 'uiSize' | 'codeSize' | 'terminalSize', fallback: number): number {
+  const limits = APPEARANCE_LIMITS[key];
+  return clampInteger(schemeFontSizes[key] ?? fallback, limits.min, limits.max, fallback);
+}
+
+export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
+  uiFamily: '',
+  codeFamily: '',
+  uiSize: configuredFontDefault('uiSize', DEFAULT_FONT_SIZES.uiSize),
+  codeSize: configuredFontDefault('codeSize', DEFAULT_FONT_SIZES.codeSize),
+  terminalFamily: '',
+  terminalSize: configuredFontDefault('terminalSize', 13),
+  windowZoom: 1,
+  wallpaperId: 'none',
+  wallpaperOverlay: 0.2,
+  wallpaperMotion: 'static',
+  appIcon: 'default',
+  customWallpaperUrl: '',
+};
 
 /** Current picker order; saved selections also accept the hidden compatibility IDs below. */
 export const SELECTABLE_WALLPAPER_IDS = [

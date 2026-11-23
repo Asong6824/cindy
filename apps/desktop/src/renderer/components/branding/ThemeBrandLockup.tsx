@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { BRAND_NAME } from '@cindy/maker-shared/branding';
-
-import headImageDark from '@/assets/head-image-dark.png';
-import headImageLight from '@/assets/head-image-light.png';
-import { logoDark, logoLight } from '@/hooks/useBrandLogo';
+import type { AppearanceSchemeId } from '@cindy/maker-shared/appearance-scheme';
+import { useBrandAssets } from '@/appearance/useBrandAssets';
 import { cn } from '@/lib/utils';
 import type { Theme, ThemeBrandAsset } from '@/themes/types';
 
 /**
- * ThemeBrandLockup — 新建对话页与设置预览共用的品牌锁定组件。
+ * ThemeBrandLockup — 新建页的品牌组件，素材由代码中的外观方案提供。
  *
- * 布局跟随 2026-07 新设计固定为 50px icon + 110×37.5px logo。
+ * 原有布局为 50px icon + 110×37.5px logo；简洁方案允许省略 icon。
  * 本地主题只替换素材，不提供尺寸配置；loader 提供的透明像素边界会在
  * 这里无损裁掉画布留白，原始文件不会被改写。
  */
@@ -74,35 +71,31 @@ function CroppedAssetImage({
   );
 }
 
-function isDarkTheme(theme: Theme | null): boolean {
-  return theme ? theme.type === 'dark' : document.documentElement.classList.contains('dark');
-}
-
 export interface ThemeBrandLockupProps {
   theme: Theme | null;
+  schemeId?: AppearanceSchemeId;
   className?: string;
   testId?: string;
 }
 
-export function ThemeBrandLockup({ theme, className, testId }: ThemeBrandLockupProps) {
-  const dark = isDarkTheme(theme);
-  const defaultIcon: ThemeBrandAsset = { src: dark ? headImageDark : headImageLight };
-  const defaultLogo: ThemeBrandAsset = { src: dark ? logoDark : logoLight };
-  const customIcon = theme?.brand?.icon;
-  const customLogo = theme?.brand?.logo;
+export function ThemeBrandLockup({ theme, schemeId, className, testId }: ThemeBrandLockupProps) {
+  const assets = useBrandAssets(theme, schemeId);
+  const { defaultIcon, defaultLogo } = assets;
+  const customIcon = assets.icon;
+  const customLogo = assets.logo;
   const [iconFailed, setIconFailed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
 
-  useEffect(() => setIconFailed(false), [customIcon, defaultIcon.src]);
+  useEffect(() => setIconFailed(false), [customIcon, defaultIcon?.src]);
   useEffect(() => setLogoFailed(false), [customLogo, defaultLogo.src]);
 
   const icon = customIcon && !iconFailed ? customIcon : defaultIcon;
   const logo = customLogo && !logoFailed ? customLogo : defaultLogo;
-  const iconIsCustom = icon === customIcon;
+  const iconIsCustom = icon !== defaultIcon;
 
   return (
     <div data-testid={testId} className={cn('flex h-[50px] items-center gap-[9px]', className)}>
-      <span
+      {icon ? <span
         data-testid={testId ? `${testId}-icon` : undefined}
         className={cn(
           'pointer-events-none relative h-[50px] w-[50px] shrink-0 select-none overflow-hidden rounded-full',
@@ -118,7 +111,7 @@ export function ThemeBrandLockup({ theme, className, testId }: ThemeBrandLockupP
           alt=""
           onError={() => setIconFailed(true)}
         />
-      </span>
+      </span> : null}
       <span
         data-testid={testId ? `${testId}-logo` : undefined}
         className="relative h-[37.5px] w-[110px] shrink-0 overflow-hidden"
@@ -128,7 +121,7 @@ export function ThemeBrandLockup({ theme, className, testId }: ThemeBrandLockupP
           boxWidth={BRAND_LOGO_WIDTH}
           boxHeight={BRAND_LOGO_HEIGHT}
           fit="contain"
-          alt={BRAND_NAME}
+          alt="Umeda"
           onError={() => setLogoFailed(true)}
         />
       </span>

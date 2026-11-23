@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Appearance, StyleSheet, useColorScheme, type ViewStyle, type TextStyle, type ImageStyle } from 'react-native';
 import { palettes, type ThemeColors, type ThemeMode } from './tokens';
+import { cachedThemedStyles } from './themedStyleCache';
 import {
   readThemePreference,
   resolveThemeMode,
@@ -110,15 +111,6 @@ export function ThemeOverrideProvider({
 type StyleFactory<T> = (colors: ThemeColors) => T;
 
 /**
- * 按 scheme 记忆化的 StyleSheet 工厂缓存。
- *
- * 模块级 `WeakMap<makeStyles, { light?, dark? }>` 保证每个 `makeStyles` 工厂**每种模式只编译一次** sheet
- * (整个 app 生命周期),组件 re-render 只做缓存查找——热路径(MessageRenderer 每条消息渲染、长列表)
- * 零 StyleSheet 分配。WeakMap 让热重载 / 卸载模块的工厂可被 GC。
- */
-const sheetCache = new WeakMap<StyleFactory<unknown>, Partial<Record<ThemeMode, unknown>>>();
-
-/**
  * 把"随主题变化的 StyleSheet"接入组件。
  *
  * @param make 一个 `(colors) => StyleSheet.create({...})` 工厂。
@@ -126,17 +118,6 @@ const sheetCache = new WeakMap<StyleFactory<unknown>, Partial<Record<ThemeMode, 
  *   退化成每帧新建 sheet,拖垮热路径。
  */
 export function useThemedStyles<T extends { [K in keyof T]: ViewStyle | TextStyle | ImageStyle }>(make: StyleFactory<T>): T {
-  const { mode, colors } = useTheme();
-  return useMemo(() => {
-    const factory = make as StyleFactory<unknown>;
-    let byMode = sheetCache.get(factory);
-    if (!byMode) {
-      byMode = {};
-      sheetCache.set(factory, byMode);
-    }
-    if (!byMode[mode]) {
-      byMode[mode] = StyleSheet.create(make(colors));
-    }
-    return byMode[mode] as T;
-  }, [make, mode, colors]);
+  const { colors } = useTheme();
+  return useMemo(() => cachedThemedStyles(make, colors, StyleSheet.create), [make, colors]);
 }

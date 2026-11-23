@@ -38,8 +38,7 @@ import {
 } from '@/lib/shareConversationImage';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
-import { useBrandLogo } from '@/hooks/useBrandLogo';
-import shareCharacterSrc from '@/assets/cindy-share-character.jpg';
+import { useBrandAssets } from '@/appearance/useBrandAssets';
 import { shareSelectionStore, useShareSelectionCount } from './shareSelectionStore';
 
 const log = createLogger('ShareSelectionBar');
@@ -66,8 +65,8 @@ export function ShareSelectionBar({
   const barRef = useRef<HTMLDivElement | null>(null);
   const mountedRef = useRef(true);
   const selectionBeforeSelectAllRef = useRef<string[] | null>(null);
-  // 页脚使用产品指定的 Cindy 主视觉；wordmark 仍跟随当前主题。
-  const logoSrc = useBrandLogo();
+  const { wordmark, shareCharacter: shareCharacterSrc } = useBrandAssets();
+  const logoSrc = wordmark.src;
   // 不缓存:render-window 会随滚动变化,缓存会让按钮状态与当前可选消息错位;
   // 导出 / 全选动作仍会当场复查 DOM,这里仅派生当前复选框显示状态。
   const shareableMessageIds = queryShareableMessageIds(sessionId);
@@ -123,7 +122,7 @@ export function ShareSelectionBar({
       logoSrc,
       characterSrc: shareCharacterSrc,
     });
-  }, [getContentWidth, logoSrc, sessionId]);
+  }, [getContentWidth, logoSrc, shareCharacterSrc, sessionId]);
 
   const run = useCallback(
     async (kind: BusyKind) => {

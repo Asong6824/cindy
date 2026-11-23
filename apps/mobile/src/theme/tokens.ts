@@ -1,3 +1,5 @@
+import { applyAppearanceColors, applyAppearanceNumbers } from './appearance';
+
 /**
  * 设计 token —— 移动端唯一颜色 / 尺寸真相源。
  *
@@ -7,7 +9,7 @@
  * 颜色分两层:
  *  - `ThemeColors`:随 light / dark 切换的色板(见 lightColors / darkColors),组件通过
  *    `useTheme().colors` 或 `useThemedStyles(makeStyles)` 消费,**永远写 token 不写 hex**。
- *  - spacing / radius / typeScale / lineHeight / fontWeight / iconSize:主题无关的不变量阶梯。
+ *  - spacing / radius / typeScale / lineHeight 等:同一方案内浅深色共用的阶梯，默认保留原值。
  *
  * 底色 / 字色 / 描边为移动端独立色板(2026-09-26 用户定稿):共享 Cindy 品牌与业务语义,
  * 色阶与对比度由移动端自定(DESIGN.md §15.13)。浅色为象牙白、正文保持中性;深色为纯中性
@@ -422,7 +424,7 @@ export const loginPalettes: Record<ThemeMode, LoginSkinColors> = {
  * 文字由深到浅:正文 → 二级 #4D4D4A → 三级 #686864,在所在底色上均 ≥ 4.5:1;占位字 #858581 另列(≈3.5:1)。
  * CTA 中性反相:#0F0F0F 底 + 白字。
  */
-export const lightColors: ThemeColors = {
+const baselineLightColors: ThemeColors = {
   surface: '#F9F9F6',
   taskTagRed: '#ed615f',
   taskTagOrange: '#eea34e',
@@ -522,7 +524,7 @@ export const lightColors: ThemeColors = {
  * 文字:正文 #EDEDED → 二级 #BDBDBD → 三级 #999999,在所在底色上均 ≥ 4.5:1;占位字 #757575 另列(≈3.6:1)。
  * CTA 中性反相:#EDEDED 底 + #121212 字。
  */
-export const darkColors: ThemeColors = {
+const baselineDarkColors: ThemeColors = {
   surface: '#121212',
   taskTagRed: '#ed615f',
   taskTagOrange: '#eea34e',
@@ -614,22 +616,27 @@ export const darkColors: ThemeColors = {
   login: loginPalettes.dark,
 };
 
+/** Original Cindy remains independently frozen; Umeda applies a named overlay. */
+export const baselinePalettes = { light: baselineLightColors, dark: baselineDarkColors };
+export const lightColors = applyAppearanceColors('light', baselineLightColors);
+export const darkColors = applyAppearanceColors('dark', baselineDarkColors);
+
 export const palettes: Record<ThemeMode, ThemeColors> = {
   light: lightColors,
   dark: darkColors,
 };
 
-// —— 以下为主题无关(light / dark 一致)的不变量阶梯 ——
+// —— 以下阶梯在同一外观方案内 light / dark 一致 ——
 
 /** 间距阶梯,基数 4。 */
-export const spacing = {
+export const spacing = applyAppearanceNumbers('spacing', {
   xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
   xl: 24,
   xxl: 32,
-} as const;
+} as const);
 
 /**
  * 圆角四档,对齐桌面 docs/design-rules/cindy-design-system.md 三档(8 内层控件 / 12 容器 / pill)+ 移动端微元素档:
@@ -639,12 +646,12 @@ export const spacing = {
  * - pill(9999):胶囊交互元素与细条 / 圆点(RN 自动截半)。
  * 阶梯外圆角禁止(守护测试拦截);组件几何专用值(如 composer 聚焦卡片)须带注释豁免。
  */
-export const radius = {
+export const radius = applyAppearanceNumbers('radius', {
   micro: 4,
   control: 8,
   container: 12,
   pill: 9999,
-} as const;
+} as const);
 
 /**
  * 字号阶梯(2026-09-27 用户定稿收拢为 11 档:删 14 并入 15、删 19 并入 20)。
@@ -660,7 +667,7 @@ export const radius = {
  * - headline(24)/ largeTitle(30):大数字、大标题;hero(40)留给 login 品牌位。
  * 阶梯外字号一律禁止——需要新号先回本文件扩档,不许在组件里写字面量(有守护测试拦截)。
  */
-export const typeScale = {
+export const typeScale = applyAppearanceNumbers('typeScale', {
   micro: 11,
   caption: 12,
   footnote: 13,
@@ -674,7 +681,7 @@ export const typeScale = {
   headline: 24,
   largeTitle: 30,
   hero: 40,
-} as const;
+} as const);
 
 /**
  * 与字号配对的行高(2026-09-27 用户定稿:每个文字样式都必须配行高,守护测试拦截)。
@@ -687,7 +694,7 @@ export const typeScale = {
  * - 对齐例外:要与相邻图标 / 按钮 / 行内正文对齐的文字,行高跟随被对齐对象。
  * 单行输入框(TextInput)不设行高:iOS 上会让占位字与光标偏位;多行编辑区可配标准行高。
  */
-export const lineHeight = {
+export const lineHeight = applyAppearanceNumbers('lineHeight', {
   micro: 16,
   caption: 18,
   bodySmall: 20,
@@ -700,7 +707,7 @@ export const lineHeight = {
   headline: 30,
   largeTitle: 36,
   hero: 44,
-} as const;
+} as const);
 
 /**
  * 字重:克制到 4 档,按角色选(2026-09-26 用户定稿,正本见 mobile-design-guide.md §3):
@@ -833,7 +840,7 @@ export const loginSizes = {
  * spinnerCycle 与 sidebarTitleMarqueePerViewport 是 §14.4 登记的语义例外,
  * 不是额外交互时长档位。
  */
-export const motionDuration = {
+export const motionDuration = applyAppearanceNumbers('motionDuration', {
   /** hover / 即时反馈、轻浮层退场 */
   instant: 80,
   /** 颜色 / 透明度状态切换、轻浮层入场 */
@@ -848,7 +855,7 @@ export const motionDuration = {
   spinnerCycle: 1000,
   /** Desktop 侧栏溢出标题每个可视宽度的阅读时长(双端 token 同构,移动端不消费) */
   sidebarTitleMarqueePerViewport: 2400,
-} as const;
+} as const);
 
 /**
  * Motion 缓动曲线控制点(cubic-bezier 四元组,与桌面同值)。RN 侧消费:

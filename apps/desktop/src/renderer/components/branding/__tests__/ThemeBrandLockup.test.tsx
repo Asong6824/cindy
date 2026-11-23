@@ -5,10 +5,40 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { ThemeBrandLockup } from '../ThemeBrandLockup';
 import type { Theme } from '@/themes/types';
+import minimalLight from '@/assets/umeda-wordmark-light.svg';
+import minimalDark from '@/assets/umeda-wordmark-dark.svg';
 
 afterEach(cleanup);
 
 describe('ThemeBrandLockup', () => {
+  // Unit: code-selected presets must change rendered artwork without changing the
+  // theme or writing preferences. Existing tests only cover one custom theme.
+  // Minimum input: a built-in theme with its own logo; minimal must suppress it.
+  it.each(['light', 'dark'] as const)('renders the minimal code preset in %s and can return to original artwork', (type) => {
+    const theme: Theme = { id: `cindy-${type}`, name: 'Built-in', type, colors: {}, brand: { logo: { src: 'original-logo.png' } } };
+    const view = render(<ThemeBrandLockup theme={theme} schemeId="minimal" testId="brand" />);
+    expect(view.queryByTestId('brand-icon')).toBeNull();
+    expect(view.getByRole('img', { name: 'Umeda' }).getAttribute('src')).toBe(type === 'light' ? minimalLight : minimalDark);
+
+    view.rerender(<ThemeBrandLockup theme={theme} schemeId="original" testId="brand" />);
+    expect(view.getByTestId('brand-icon').querySelector('img')).not.toBeNull();
+    expect(view.getByRole('img', { name: 'Umeda' }).getAttribute('src')).toBe('original-logo.png');
+  });
+
+  // Unit: configuration-and-overrides + design-governance compatibility. A local
+  // home logo must still win; a broken override must fall back to the selected pack.
+  it('preserves explicit local artwork and falls back to the minimal pack when it fails', () => {
+    const theme: Theme = { id: 'custom-local', name: 'Local', type: 'dark', colors: {}, brand: {
+      icon: { src: 'custom-icon.png' }, logo: { src: 'custom-logo.png' },
+    } };
+    const view = render(<ThemeBrandLockup theme={theme} schemeId="minimal" testId="brand" />);
+    expect(view.getByRole('img', { name: 'Umeda' }).getAttribute('src')).toBe('custom-logo.png');
+    fireEvent.error(view.getByRole('img', { name: 'Umeda' }));
+    expect(view.getByRole('img', { name: 'Umeda' }).getAttribute('src')).toBe(minimalDark);
+    fireEvent.error(view.getByTestId('brand-icon').querySelector('img')!);
+    expect(view.queryByTestId('brand-icon')).toBeNull();
+  });
+
   it('keeps the approved fixed slots and renders both custom assets', () => {
     const theme: Theme = {
       id: 'custom-local',

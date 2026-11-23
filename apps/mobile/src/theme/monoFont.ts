@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { resolveAppearanceScheme } from '@cindy/maker-shared/appearance-scheme';
 
 /**
  * 统一的等宽字体 —— JetBrains Mono(OFL 开源,随包分发,license 见 assets/fonts/JetBrainsMono-OFL.txt)。
@@ -9,7 +10,7 @@ import { Platform } from 'react-native';
  * 保持其可在 node 单测里直接 import。消费方从 `@/theme` barrel 取 `monoFont`。
  * web(Expo web smoke)没有打包字体,回落系统 monospace。
  */
-export const monoFont = Platform.select({
+export const monoFont = resolveAppearanceScheme().mobile.codeFontFamily ?? Platform.select({
   ios: 'JetBrains Mono',
   android: 'JetBrains Mono',
   default: 'monospace',

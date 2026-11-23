@@ -14,7 +14,15 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { darkColors, lightColors, type ThemeColors } from '@/theme/tokens';
+import { baselinePalettes, type ThemeColors } from '@/theme/tokens';
+import { applyAppearanceColors } from '@/theme/appearance';
+import { resolveAppearanceScheme } from '@cindy/maker-shared/appearance-scheme';
+
+// Freeze the original scheme through the same production resolver used for other
+// schemes. Selecting a Umeda preset must not redefine Cindy's independent baseline.
+// Any edit to a baseline color still fails the unchanged snapshot below.
+const lightColors = applyAppearanceColors('light', baselinePalettes.light, resolveAppearanceScheme('original'));
+const darkColors = applyAppearanceColors('dark', baselinePalettes.dark, resolveAppearanceScheme('original'));
 
 const FIXTURE = 'apps/mobile/src/__tests__/fixtures/theme-colors-snapshot.json';
 

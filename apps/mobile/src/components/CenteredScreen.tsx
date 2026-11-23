@@ -1,6 +1,6 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/AppText';
-import { MobileLoginHandoffStage } from '@/components/MobileLoginHandoffStage';
+import { AppearanceBrand } from '@/components/AppearanceBrand';
 import {
   fontWeight,
   useTheme,
@@ -12,12 +12,9 @@ import { lineHeight, spacing, typeScale } from '@/theme/tokens';
 /**
  * CenteredScreen —— 启动期全屏占位屏。
  *
- * splash 变体(PR4a 白底体系重写,implementation-plan Step 5 WHAT1):
- * 复用 MobileLoginHandoffStage 唯一品牌宿主(主题 surface 底 + wave4 双红渐变 +
- * 立绘/SLOGAN/字标静态品牌,750 stage 几何)。旧红底 splash 体系(brandSplash
- * 主题族铺底 + assets/splash/ 下 fade 立绘·白版字标·script 资产的 375×812 画布
- * 几何)已随 wave4 改判整体退役:渲染层不再 require 任何旧 splash 资产,
- * 文件暂留原目录待后续清理批次统一处置(splashPreview.test 校验其存在性)。
+ * splash 变体通过 AppearanceBrand 消费代码中的外观方案。original 继续复用
+ * MobileLoginHandoffStage 的原有品牌舞台，minimal 使用文字标志。
+ * 原生 starting window 仍由构建配置管理，不随此 JS 层适配改写。
  *
  * default 变体保持原样(通用 loading/占位)。
  */
@@ -35,9 +32,8 @@ export function CenteredScreen({
 
   if (variant === 'splash') {
     return (
-      <MobileLoginHandoffStage
+      <AppearanceBrand
         accessibilityLabel={title}
-        testID="startup.splash"
       />
     );
   }

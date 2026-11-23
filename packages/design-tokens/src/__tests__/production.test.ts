@@ -32,6 +32,7 @@ const inputFiles = [
   "themes/builtin.json",
   "reference/shared.json",
   "semantic/shared.json",
+  "umeda-appearance.json",
 ];
 function loadSource(): Record<string, SourceToken> {
   return Object.assign(
@@ -55,6 +56,7 @@ describe("DS-8 production source", () => {
       for (const path of [
         ...inputFiles.map((f) => `packages/design-tokens/src/${f}`),
         "packages/design-tokens/src/desktop-bindings.json",
+        "apps/mobile/src/theme/tokens.ts",
         ...original.map((f) => f.path.slice(root.length + 1)),
       ]) {
         mkdirSync(dirname(join(dir, path)), { recursive: true });
@@ -65,6 +67,27 @@ describe("DS-8 production source", () => {
         second = await buildProductionFiles(dir);
       expect(second).toEqual(first);
       assertFresh(first);
+      // Pipeline contract (unit): edit only the appearance configuration and
+      // observe both platform payloads. Earlier coverage only exercised Desktop
+      // defaults, so it could miss a disconnected native override or active ID.
+      const appearancePath = join(dir, 'packages/design-tokens/src/umeda-appearance.json');
+      const appearanceOriginal = readFileSync(appearancePath, 'utf8');
+      const appearance = JSON.parse(appearanceOriginal);
+      appearance.$extensions['com.umeda.appearance'].active = 'minimal';
+      appearance.reference.umeda.surface.light.$value.components = [0.1, 0.2, 0.3];
+      appearance.reference.umeda['body-line-height'].$value.value = 26;
+      writeFileSync(appearancePath, JSON.stringify(appearance));
+      const generated = (await buildProductionFiles(dir)).find((f) => f.path.endsWith('/appearanceSchemes.ts'))!;
+      const runtime: Record<string, any> = {};
+      new Function('exports', ts.transpileModule(generated.body, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(runtime);
+      expect(runtime.GENERATED_APPEARANCE.active).toBe('minimal');
+      expect(runtime.GENERATED_APPEARANCE.schemes.minimal.desktop.colors.light.surface).toBe('#1a334d');
+      expect(runtime.GENERATED_APPEARANCE.schemes.minimal.mobile.colors.light.surface).toBe('#1a334d');
+      expect(runtime.GENERATED_APPEARANCE.schemes.minimal.mobile.lineHeight.body).toBe(26);
+      delete appearance.$extensions['com.umeda.appearance'].schemes.minimal.mobile.colors.dark.surface;
+      writeFileSync(appearancePath, JSON.stringify(appearance));
+      await expect(buildProductionFiles(dir)).rejects.toThrow(/matching light\/dark/);
+      writeFileSync(appearancePath, appearanceOriginal);
       for (const output of first) {
         for (const bad of [
           undefined,

@@ -1,8 +1,13 @@
 import type { TextInstance, TextInputInstance } from 'react-native';
 import { Text as RNText, TextInput as RNTextInput } from 'react-native';
 import type { TextInputProps, TextProps } from 'react-native';
-import type { Ref } from 'react';
+import { createContext, useContext, type Ref } from 'react';
 import { useTheme } from '@/theme/ThemeProvider';
+import { resolveAppearanceScheme } from '@cindy/maker-shared/appearance-scheme';
+
+const configuredFamily = resolveAppearanceScheme().mobile.fontFamily;
+const appearanceFont = configuredFamily ? { fontFamily: configuredFamily } : undefined;
+const TextAncestor = createContext(false);
 
 /**
  * 全局字体缩放限幅包装 —— 应用内所有 `Text` / `TextInput` 的唯一来源。
@@ -18,19 +23,24 @@ import { useTheme } from '@/theme/ThemeProvider';
 export const MAX_FONT_SIZE_MULTIPLIER = 1.2;
 
 export function Text({ ref, ...props }: TextProps & { ref?: Ref<TextInstance> }) {
-  return <RNText ref={ref} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER} {...props} />;
+  const nested = useContext(TextAncestor);
+  const text = <RNText ref={ref} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER} {...props} style={[nested ? undefined : appearanceFont, props.style]} />;
+  // A nested span must inherit a surrounding code font instead of resetting to UI.
+  return appearanceFont ? <TextAncestor.Provider value>{text}</TextAncestor.Provider> : text;
 }
 
 /** ref 直接透传给原生 TextInput(React 19 ref-as-prop),`focus()` 等命令式调用不受影响。 */
 export function TextInput({ ref, ...props }: TextInputProps & { ref?: Ref<TextInputInstance> }) {
   const { colors } = useTheme();
-  return (
+  const input = (
     <RNTextInput
       ref={ref}
       cursorColor={colors.inputCaret}
       maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
       selectionColor={colors.inputCaret}
       {...props}
+      style={[appearanceFont, props.style]}
     />
   );
+  return appearanceFont ? <TextAncestor.Provider value>{input}</TextAncestor.Provider> : input;
 }

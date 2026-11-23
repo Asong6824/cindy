@@ -1,0 +1,194 @@
+{
+  "$description": "个人 Umeda 外观配置正本。active 选择方案；绑定引用 DTCG Token，数值与新 Token 均在本文件或现有设计源维护。original 不覆盖现有默认。修改后运行 design-tokens generate。",
+  "$extensions": {
+    "com.umeda.appearance": {
+      "active": "original",
+      "schemes": {
+        "original": {
+          "brandStyle": "illustrated",
+          "desktop": {},
+          "mobile": {}
+        },
+        "minimal": {
+          "brandStyle": "typographic",
+          "desktop": {
+            "colors": {
+              "light": {
+                "surface": "semantic.umeda.surface.light",
+                "text-primary": "semantic.umeda.ink.light"
+              },
+              "dark": {
+                "surface": "semantic.umeda.surface.dark",
+                "text-primary": "semantic.umeda.ink.dark"
+              }
+            },
+            "foundations": {
+              "app-font-ui-default": "semantic.foundations.app-font-ui-default",
+              "space-4": "semantic.foundations.space-4",
+              "radius": "semantic.defaults.radius.light"
+            },
+            "fontSizes": {
+              "uiSize": "semantic.foundations.app-ui-font-size",
+              "codeSize": "semantic.foundations.app-code-font-size"
+            }
+          },
+          "mobile": {
+            "colors": {
+              "light": {
+                "surface": "semantic.umeda.surface.light",
+                "textPrimary": "semantic.umeda.ink.light"
+              },
+              "dark": {
+                "surface": "semantic.umeda.surface.dark",
+                "textPrimary": "semantic.umeda.ink.dark"
+              }
+            },
+            "spacing": {
+              "lg": "semantic.foundations.space-4"
+            },
+            "radius": {
+              "container": "semantic.foundations.radius-xl"
+            },
+            "typeScale": {
+              "body": "semantic.foundations.text-base"
+            },
+            "lineHeight": {
+              "body": "semantic.umeda.body-line-height"
+            },
+            "motionDuration": {
+              "fast": "semantic.foundations.motion-fast"
+            },
+            "fontFamily": "semantic.umeda.system-font"
+          }
+        }
+      }
+    }
+  },
+  "reference": {
+    "umeda": {
+      "surface": {
+        "light": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              1,
+              1,
+              1
+            ],
+            "alpha": 1
+          },
+          "$extensions": {
+            "com.cindy.desktop": {
+              "format": "hex",
+              "uppercase": false,
+              "alpha": false
+            }
+          }
+        },
+        "dark": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.08,
+              0.08,
+              0.08
+            ],
+            "alpha": 1
+          },
+          "$extensions": {
+            "com.cindy.desktop": {
+              "format": "hex",
+              "uppercase": false,
+              "alpha": false
+            }
+          }
+        }
+      },
+      "ink": {
+        "light": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.12,
+              0.12,
+              0.12
+            ],
+            "alpha": 1
+          },
+          "$extensions": {
+            "com.cindy.desktop": {
+              "format": "hex",
+              "uppercase": false,
+              "alpha": false
+            }
+          }
+        },
+        "dark": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.94,
+              0.94,
+              0.94
+            ],
+            "alpha": 1
+          },
+          "$extensions": {
+            "com.cindy.desktop": {
+              "format": "hex",
+              "uppercase": false,
+              "alpha": false
+            }
+          }
+        }
+      },
+      "body-line-height": {
+        "$type": "dimension",
+        "$value": {
+          "value": 22,
+          "unit": "px"
+        }
+      },
+      "system-font": {
+        "$type": "fontFamily",
+        "$value": "System"
+      }
+    }
+  },
+  "semantic": {
+    "umeda": {
+      "surface": {
+        "light": {
+          "$type": "color",
+          "$value": "{reference.umeda.surface.light}"
+        },
+        "dark": {
+          "$type": "color",
+          "$value": "{reference.umeda.surface.dark}"
+        }
+      },
+      "ink": {
+        "light": {
+          "$type": "color",
+          "$value": "{reference.umeda.ink.light}"
+        },
+        "dark": {
+          "$type": "color",
+          "$value": "{reference.umeda.ink.dark}"
+        }
+      },
+      "body-line-height": {
+        "$type": "dimension",
+        "$value": "{reference.umeda.body-line-height}"
+      },
+      "system-font": {
+        "$type": "fontFamily",
+        "$value": "{reference.umeda.system-font}"
+      }
+    }
+  }
+}

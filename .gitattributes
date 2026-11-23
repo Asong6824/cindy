@@ -65,6 +65,7 @@ apps/desktop/src/renderer/themes/colors.ts text eol=lf
 apps/desktop/src/renderer/themes/builtin/*.ts text eol=lf
 apps/desktop/src/renderer/styles/generated/* text eol=lf
 apps/desktop/src/shared/generated/appearance-tokens.ts text eol=lf
+packages/maker-shared/src/generated/appearanceSchemes.ts text eol=lf linguist-generated=true
 apps/desktop/src/shared/windowBackdrop.ts text eol=lf
 apps/desktop/tailwind.config.ts text eol=lf
 docs/design-rules/DESIGN.md text eol=lf

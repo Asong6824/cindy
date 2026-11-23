@@ -24,6 +24,8 @@ import {
   normalizeAppearanceSettings,
   type AppearanceSettings,
 } from '@/../shared/appearanceSettings';
+import { DEFAULT_FONT_SIZES } from '@/../shared/generated/appearance-tokens';
+import { resolveAppearanceScheme, type AppearanceScheme } from '@cindy/maker-shared/appearance-scheme';
 
 export interface FontSettings {
   uiFamily: string;
@@ -94,13 +96,18 @@ export function getInitialFontSettings(): FontSettings {
   };
 }
 
-export function applyFontSettings(settings: FontSettings): void {
+export function applyFontSettings(settings: FontSettings, scheme: AppearanceScheme = resolveAppearanceScheme()): void {
   const root = document.documentElement;
   const uiFamily = normalizeFamily(settings.uiFamily);
   const codeFamily = normalizeFamily(settings.codeFamily);
   const uiSize = clampUiFontSize(settings.uiSize);
   const codeSize = clampFontSize(settings.codeSize);
-  const scale = uiSize / DEFAULT_UI_FONT_SIZE;
+  const scale = uiSize / DEFAULT_FONT_SIZES.uiSize;
+  const foundations = scheme.desktop.foundations;
+  const configured = (name: string, base: number) => {
+    const value = foundations[name];
+    return value?.endsWith('px') ? Number.parseFloat(value) : base;
+  };
   const targets = [root, document.body].filter(Boolean);
 
   const set = (name: string, value: string) => {
@@ -123,13 +130,13 @@ export function applyFontSettings(settings: FontSettings): void {
   set('--app-ui-font-size', `${uiSize}px`);
 
   for (const [tokenSize, base] of Object.entries(UI_TEXT_TOKEN_SIZES)) {
-    set(`--text-${tokenSize}`, `${Math.round(base * scale)}px`);
+    set(`--text-${tokenSize}`, `${Math.round(configured(`text-${tokenSize}`, base) * scale)}px`);
   }
   for (const [token, base] of Object.entries(SCALED_TAILWIND_TOKENS)) {
-    set(`--text-${token}`, `${Math.round(base * scale)}px`);
+    set(`--text-${token}`, `${Math.round(configured(`text-${token}`, base) * scale)}px`);
   }
   for (const [token, base] of Object.entries(TAILWIND_LINE_HEIGHTS)) {
-    set(`--text-${token}-line-height`, `${Math.round(base * scale)}px`);
+    set(`--text-${token}-line-height`, `${Math.round(configured(`text-${token}-line-height`, base) * scale)}px`);
   }
 }
 

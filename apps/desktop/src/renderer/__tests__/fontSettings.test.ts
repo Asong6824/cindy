@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
+import { resolveAppearanceScheme } from '@cindy/maker-shared/appearance-scheme';
 
 import {
   applyFontSettings,
@@ -50,6 +51,18 @@ describe('font settings', () => {
   beforeEach(() => {
     localStorage.clear();
     resetRootStyles();
+  });
+
+  // Unit: configured typography must survive the inline font scaler, while user
+  // family/size overrides still win. Existing tests only used fixed token bases.
+  it('scales configured text sizes and retains explicit user fonts', () => {
+    const base = resolveAppearanceScheme('minimal');
+    const scheme = { ...base, desktop: { ...base.desktop, foundations: { 'text-14': '18px', 'text-sm-line-height': '24px' } } };
+    applyFontSettings({ uiFamily: 'User Font', codeFamily: 'User Mono', uiSize: 14, codeSize: 16 }, scheme);
+    expect(document.documentElement.style.getPropertyValue('--text-14')).toBe('18px');
+    expect(document.documentElement.style.getPropertyValue('--text-sm-line-height')).toBe('24px');
+    expect(document.documentElement.style.getPropertyValue('--app-font-ui')).toBe('User Font, var(--app-font-ui-default)');
+    expect(document.documentElement.style.getPropertyValue('--app-code-font-size')).toBe('16px');
   });
 
   it('reads defaults from empty localStorage', () => {

@@ -1,6 +1,11 @@
 # @cindy/design-tokens
 
-Desktop 已接管设计数值的 DTCG 编辑源。Terrazzo **2.7.1** 在构建期校验并生成；产品运行时只读取生成的本地子集，**不 import 此包或生成器**。Mobile 保持原实现与原生输入，尚未接管。
+Desktop 已接管设计数值的 DTCG 编辑源。Terrazzo **2.7.1** 在构建期校验并生成；产品运行时只读取生成的本地子集，**不 import 此包或生成器**。Mobile 基础默认与原生输入保持原实现；个人 Umeda 的方案覆盖已接入下述生成入口，不表示 Mobile 基础设计源整体迁移。
+
+个人 Umeda 的统一外观配置位于 `src/umeda-appearance.json`，包含当前方案、DTCG
+试验数值与两端绑定；同一 Terrazzo 流程输出 maker-shared 的 `generated/appearanceSchemes.ts`。
+配置及优先级见[外观架构](../../docs/dev-rules/umeda-appearance.md)。默认 `original` 不覆盖
+既有数值；颜色、基础变量和 Mobile 角色均在构建时校验，不增加运行期 Token 解析器。
 
 ## 修改与生成
 

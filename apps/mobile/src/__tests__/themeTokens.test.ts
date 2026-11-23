@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { resolveAppearanceScheme } from '@cindy/maker-shared/appearance-scheme';
+import { applyAppearanceColors, applyAppearanceNumbers } from '@/theme/appearance';
+import { cachedThemedStyles } from '@/theme/themedStyleCache';
 import {
   darkColors,
   fontWeight,
@@ -35,6 +38,34 @@ function contrastRatio(fg: string, bg: string): number {
 }
 
 describe('theme tokens', () => {
+  // Unit: the new scheme pipeline must alter rendered token values and preserve
+  // platform defaults. Existing freeze tests only cover the original scheme.
+  // Minimum input: minimal palette + one configured spacing role, in both modes.
+  it.each(['light', 'dark'] as const)('resolves configured colors and geometry in %s without modifying the baseline', (mode) => {
+    const scheme = resolveAppearanceScheme('minimal');
+    const base = { surface: 'base-surface', textPrimary: 'base-ink', untouched: 'kept' };
+    const colors = applyAppearanceColors(mode, base, scheme);
+    expect(colors.surface).toBe(scheme.mobile.colors[mode].surface);
+    expect(colors.untouched).toBe('kept');
+    expect(base.surface).toBe('base-surface');
+    expect(applyAppearanceColors(mode, base, resolveAppearanceScheme('original'))).toBe(base);
+    const spacing = applyAppearanceNumbers('spacing', { lg: 3, untouched: 2 }, scheme);
+    expect(spacing.lg).toBe(scheme.mobile.spacing.lg);
+    expect(spacing.untouched).toBe(2);
+  });
+
+  // Unit: two palettes in the same mode previously reused the first palette's
+  // StyleSheet. Cache by palette identity; each factory/palette compiles only once.
+  it('refreshes cached styles when a palette changes while reusing unchanged styles', () => {
+    const make = (colors: { surface: string }) => ({ background: colors.surface });
+    let compiled = 0;
+    const create = (style: ReturnType<typeof make>) => { compiled++; return style; };
+    const first = { surface: 'first' }, second = { surface: 'second' };
+    const a = cachedThemedStyles(make, first, create);
+    expect(cachedThemedStyles(make, first, create)).toBe(a);
+    expect(cachedThemedStyles(make, second, create).background).toBe('second');
+    expect(compiled).toBe(2);
+  });
   it('file tile micro labels meet normal-text contrast on both attachment surfaces', () => {
     for (const colors of [lightColors, darkColors]) {
       for (const background of [colors.surface, colors.surfaceElevated]) {
