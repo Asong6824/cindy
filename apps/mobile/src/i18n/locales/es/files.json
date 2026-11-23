@@ -143,5 +143,14 @@
   },
   "gallery": {
     "cacheMiss": "Este medio aún no está almacenado en caché en tu teléfono. Ábralo nuevamente una vez que su computadora esté conectada"
+  },
+  "vault": {
+    "title": "Biblioteca",
+    "cloud": "Archivos en la nube",
+    "offline": "Sin conexión · contenido guardado",
+    "refresh": "Actualizar",
+    "openFile": "Descargar y abrir",
+    "readError": "Este archivo no está disponible. Conéctate para descargarlo.",
+    "empty": "Aún no hay archivos sincronizados."
   }
 }

@@ -21,6 +21,7 @@ export interface DurableOutboxDeliveryDeps {
   store: ReturnType<typeof createDurableOutbox>;
   isCurrent(): boolean;
   canRun(record: DurableOutboxRecord): boolean;
+  relayDelivery?(record: DurableOutboxRecord, update: (patch: Partial<DurableOutboxRecord>) => Promise<DurableOutboxRecord>): Promise<'fallback' | 'waiting' | 'accepted' | 'cancelled'>;
   sessionPolicy?(record: DurableOutboxRecord): Promise<OutboxSessionPolicy>;
   projection(record: DurableOutboxRecord): Promise<DeliveryProjection>;
   /**
@@ -145,6 +146,13 @@ export function createDurableOutboxDelivery(deps: DurableOutboxDeliveryDeps) {
       if (current(record)) await finish();
     };
     try {
+      if (!isDurableOutboxSettled(record) && deps.relayDelivery) {
+        const outcome = await deps.relayDelivery(record, async patch => { await update(patch); return record; });
+        if (!current(record)) return;
+        if (outcome === 'cancelled') return await finish(true);
+        if (outcome === 'accepted') { await deps.accepted?.(record); due.set(id(record), Date.now() + 1_000); return; }
+        if (outcome === 'waiting') { attempts.delete(id(record)); due.set(id(record), Date.now() + 30_000); return; }
+      }
       if (deps.sessionPolicy && !isDurableOutboxSettled(record)) {
         const policy = await deps.sessionPolicy(record);
         if (!current(record) || policy === 'wait') return;
@@ -410,6 +418,8 @@ export function createDurableOutboxDelivery(deps: DurableOutboxDeliveryDeps) {
         state:
           isDurableOutboxSettled(record)
             ? record.state
+            : record.relay && record.relay.state !== 'accepted'
+              ? record.state === 'failed' ? 'failed' : 'queued'
             : record.state === "sending"
               ? "confirming"
               : deps.retryable(error)

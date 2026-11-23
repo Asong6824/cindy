@@ -2,6 +2,8 @@ import { CONTRIBUTION_ERROR_CODES } from './pluginContributionContract';
 import { WRITABLE_DIRECTORY_GRANT_ERROR_CODES, type WritableDirectoryGrantErrorCode } from './writableDirectoryGrantError';
 import type { BrowserOpenForLoginErrorCode } from './browserBackend';
 
+const WORK_MANAGEMENT_ERROR_CODES = ['WORK_VERSION_CONFLICT', 'WORK_REQUEST_REUSED', 'WORK_INVALID_RELATION'] as const;
+
 /** main / preload / renderer 共用的 IPC 错误类型。 */
 
 // Local companion-import errors. Remote Resource keeps its existing wire codes.
@@ -76,6 +78,7 @@ export type IpcErrorCode =
   | 'SUBSCRIPTION_ACCOUNT_FAILED'
   | WritableDirectoryGrantErrorCode
   | (typeof CONTRIBUTION_ERROR_CODES)[number]
+  | (typeof WORK_MANAGEMENT_ERROR_CODES)[number]
   | (typeof COMPANION_IMPORT_ERROR_CODES)[number]
   // 通用错误
   | 'INVALID_PARAMS'
@@ -359,6 +362,7 @@ const IPC_ERROR_CODES: ReadonlySet<IpcErrorCode> = new Set<IpcErrorCode>([
   ...WRITABLE_DIRECTORY_GRANT_ERROR_CODES,
   ...COMPANION_IMPORT_ERROR_CODES,
   ...CONTRIBUTION_ERROR_CODES,
+  ...WORK_MANAGEMENT_ERROR_CODES,
   'INVALID_PARAMS',
   'NOT_FOUND',
   'INTERNAL',

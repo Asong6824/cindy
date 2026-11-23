@@ -17,6 +17,8 @@ import type { EdgeSocket, ObjectContext, RelayEnvironment } from './runtime';
 import { OpenRelay } from './openRelay';
 import { readJson } from './requestJson';
 
+export { UmedaWork } from './work';
+
 const PREFIX = '/api/device-link';
 const VERSION = `${RELAY_VERSION}-umeda.1`;
 
@@ -27,6 +29,11 @@ function json(body: unknown, status = 200): Response {
 /** One named object owns the private relay: all devices reach the same coordinator. */
 export default {
   fetch(request: Request, env: RelayEnvironment): Promise<Response> {
+    if (new URL(request.url).pathname.startsWith('/internal/')) return Promise.resolve(new Response(null, { status: 404 }));
+    if (new URL(request.url).pathname.startsWith('/api/work/')) {
+      if (env.UMEDA_AUTH_MODE !== 'none' || !env.UMEDA_WORK) return Promise.resolve(Response.json({ error: 'WORK_SYNC_UNAVAILABLE' }, { status: 404 }));
+      return env.UMEDA_WORK.get(env.UMEDA_WORK.idFromName('work-v1')).fetch(request);
+    }
     return env.UMEDA_RELAY.get(env.UMEDA_RELAY.idFromName('private-relay-v1')).fetch(request);
   },
 };
@@ -45,7 +52,7 @@ export class UmedaRelay extends DurableObject<RelayEnvironment> {
   constructor(private readonly ctx: ObjectContext, private readonly env: RelayEnvironment) {
     super(ctx, env);
     if (env.UMEDA_AUTH_MODE === 'none') {
-      this.open = new OpenRelay(ctx);
+      this.open = new OpenRelay(ctx, env.UMEDA_VAULT, !!env.UMEDA_WORK);
       this.ready = Promise.resolve();
       return;
     }

@@ -11,6 +11,7 @@
 | --- | --- |
 | Desktop、Mobile、maker-core 模块内的触发条件 | [Desktop](../../apps/desktop/AGENTS.md)、[Mobile](../../apps/mobile/AGENTS.md)、[maker-core](../../packages/maker-core/AGENTS.md) 的嵌套 AGENTS.md；专题正文不在模块内重复 |
 | 目录职责、按用户行为定位公共入口与测试、开发环境 | [仓库地图](repo-map.md)、[环境准备](environment-setup.md) |
+| 个人 Umeda 的 React／原生分工、独立资料服务与迁移约定 | [Umeda 客户端架构](umeda-client-architecture.md)、[优化路线图](../umeda-optimization-roadmap.md)；仅限个人分支 |
 | 通用个人开发版：组合自己的 PR、插件源码与验证报告 | [个人开发版脚本](personal-build.md) |
 | 已发生过的任务体验回归、测试入口与运行命令 | [任务回归台账](session-regressions.md) |
 | Desktop 启动、重启与验证 | [桌面开发](desktop-development.md) |

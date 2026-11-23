@@ -143,5 +143,14 @@
   },
   "gallery": {
     "cacheMiss": "Dieses Medium ist noch nicht auf deinem Smartphone zwischengespeichert. Öffne es erneut, sobald dein Computer verbunden ist"
+  },
+  "vault": {
+    "title": "Ablage",
+    "cloud": "Cloud-Dateien",
+    "offline": "Offline · gespeicherte Inhalte",
+    "refresh": "Aktualisieren",
+    "openFile": "Herunterladen und öffnen",
+    "readError": "Diese Datei ist nicht verfügbar. Zum Herunterladen verbinden.",
+    "empty": "Noch keine synchronisierten Dateien."
   }
 }

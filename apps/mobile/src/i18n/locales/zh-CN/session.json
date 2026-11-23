@@ -640,7 +640,9 @@
     "taskCleared": "发送后，这个任务已被清空。消息仍保存在手机上，请核对后处理。",
     "restoreFailed": "暂时无法恢复待发消息，已保存的内容没有删除。请重启 App 后重试。",
     "recoveryTarget": "恢复这个任务时请保留原来的电脑，后续消息仍保存在手机上。",
-    "taskAlreadyCreated": "电脑上已创建这个任务，已保存的消息会在原任务中继续发送。"
+    "taskAlreadyCreated": "电脑上已创建这个任务，已保存的消息会在原任务中继续发送。",
+    "cloudFailed": "这条消息未送到电脑。请检查任务状态后重新发送一条消息。",
+    "cloudExpired": "电脑超过 24 小时未领取，这条消息已过期。"
   },
   "remoteError": {
     "SSH_HARNESS_SWITCH_UNSUPPORTED": "此 SSH 任务暂不支持切换 Harness。请选择当前 Harness 下的模型，或使用所需 Harness 新建 SSH 任务。",

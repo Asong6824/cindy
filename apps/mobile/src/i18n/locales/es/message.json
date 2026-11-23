@@ -260,7 +260,9 @@
     "queued": "En cola",
     "retryImage": "Sube esta imagen nuevamente",
     "waitingMessage": "Esperando enviar: {{text}}",
-    "imagesNotUploaded_many": "Las imágenes {{count}} no se cargaron"
+    "imagesNotUploaded_many": "Las imágenes {{count}} no se cargaron",
+    "cloudQueued": "Guardado en la nube; esperando al ordenador",
+    "cloudQueuedMessage": "Guardado en la nube; esperando al ordenador: {{text}}"
   },
   "systemCard": {
     "pluginModelRoute": {

@@ -964,6 +964,22 @@ Cindy 里的**持久 AI 助手实体**（原名 Bot）：有长期身份、自�
 
 Codex 模型的第三档速度；与推理深度 Ultra 独立。标准、快速、超快分别对应默认、Fast、Ultrafast。
 
+### To-do
+
+Umeda 工作管理中的业务任务，承接旧 KOS task；与 Agent 执行任务 Session 分开，可以由人完成或关联多段执行。
+
+### KOS workbench
+
+Umeda 内的个人资料、目标、行动与阅读看板；不指伙伴近况浮层，也不代表 Agent 任务或执行链路。KOS task 对象在此界面称行动事项，避免与 Cindy session 的任务混淆。
+
+### Vault
+
+Umeda 跨设备同步的文档与附件内容库；不代表 Agent 任务工作目录。
+
+### Work
+
+个人 Umeda 的应用级目标、项目与待办入口；不指代码目录，不替换 Cindy 执行任务列表。
+
 ### Ungrouped
 
 模型目录中没有可信厂商 group、但仍可用于对话的兜底分组。它不推断产地或厂商；服务端补充明确 group 后模型会自动归入对应分组。与不能用于对话、沿用原短名称的 Other（其它）分开。

@@ -112,6 +112,8 @@ export interface BuildHandoffOptions {
    * 非伙伴主对话或没有账本时不传。
    */
   workingMemory?: string | null;
+  /** Umeda application checkpoint data; supplied in the user-message handoff, never system. */
+  workCheckpoint?: string | null;
 }
 
 /** 最近多少个用户轮次进入逐字区(其余进单行提要区)。 */
@@ -702,12 +704,13 @@ export const COMPANION_SESSION_IDS_LIMIT = 50;
  * 加上检索指引与结束标记仍远小于硬上限,正文总有余量。
  */
 const WORKING_MEMORY_SECTION_HEADING = '== Working memory (host-maintained summary';
+const WORK_CHECKPOINT_SECTION_HEADING = '== Structured work checkpoint (reported facts; verify before continuing) ==';
 
 function splitMandatoryHandoffTail(text: string, opts: BuildHandoffOptions): {
   body: string;
   tail: string;
 } {
-  const starts = [WORKING_MEMORY_SECTION_HEADING, RETRIEVAL_SECTION_HEADING, RECALL_SECTION_HEADING]
+  const starts = [WORK_CHECKPOINT_SECTION_HEADING, WORKING_MEMORY_SECTION_HEADING, RETRIEVAL_SECTION_HEADING, RECALL_SECTION_HEADING]
     .map((heading) => text.lastIndexOf(heading))
     .filter((at) => at >= 0);
   if (starts.length > 0) {
@@ -890,6 +893,7 @@ function assembleHandoffText(
   // 工作记忆账本:宿主维护的语义状态,逐字段已自带标题与"不是授权"说明。放在提要 / 近期
   // 对话之后、检索指引之前:它和检索指引、结束标记一样属于硬截断时必须整段保住的尾部
   // (splitMandatoryHandoffTail 从它的标题起算),正文再长也只会裁掉前面的摘录。
+  if (opts.workCheckpoint) sections.push(`${WORK_CHECKPOINT_SECTION_HEADING}\n${opts.workCheckpoint.slice(0, 4000)}`);
   if (opts.workingMemory) sections.push(opts.workingMemory);
 
   if (opts.sessionId && opts.companion) {

@@ -120,6 +120,8 @@ export function durableOutboxDisplayItem(
 ): MobileOutboxItem {
   return {
     ...record.item,
+    cloudQueued: record.relay?.state === 'queued',
+    cloudTerminal: record.relay?.terminal === true,
     phase:
       record.state === "failed"
         ? "failed"

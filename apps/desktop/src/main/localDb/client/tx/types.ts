@@ -3,6 +3,8 @@ import type { TaskTagRequest, TaskTagResult } from '@cindy/maker-shared';
 import type { ChatCacheTransaction, ChatCacheResult } from '../../worker/opHandlers/chatCacheTx.js';
 
 export type DbTxName =
+  | 'umedaWork.replica'
+  | 'umedaWork.execute'
   | 'usage.recordPiUsage'
   | 'chatCache.execute'
   | 'usage.recordMediaSpend'
@@ -1386,6 +1388,8 @@ export interface MediaSpendArgs {
 }
 
 export type DbTxArgsByName = {
+  'umedaWork.replica': import('@cindy/maker-shared/work-replication').WorkReplicaRequest;
+  'umedaWork.execute': import('@cindy/maker-shared/work-management').WorkManagementTransaction;
   'usage.recordMediaSpend': MediaSpendArgs;
   'usage.recordPiUsage': import('../../worker/opHandlers/piUsageTx.js').PiUsageWrite[];
   'authorization.readProjection': { sessionId: string; leadId: string };
@@ -1480,6 +1484,8 @@ export type DbTxArgsByName = {
 };
 
 export type DbTxResultByName = {
+  'umedaWork.replica': Record<string, unknown>;
+  'umedaWork.execute': Record<string, unknown>;
   'usage.recordPiUsage': { changed: boolean };
   'usage.recordMediaSpend': {
     legacyUsd: number;

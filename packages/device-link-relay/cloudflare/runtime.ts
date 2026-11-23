@@ -2,10 +2,11 @@
 import type { HubConnectionState } from '../src/hub';
 
 export interface ObjectStorage {
+  transaction?<T>(operation: (storage: ObjectStorage) => Promise<T>): Promise<T>;
   get<T>(key: string): Promise<T | undefined>;
   put<T>(key: string, value: T): Promise<void>;
   delete(key: string | string[]): Promise<unknown>;
-  list<T>(options: { prefix: string }): Promise<Map<string, T>>;
+  list<T>(options: { prefix: string; start?: string; startAfter?: string; end?: string; limit?: number; reverse?: boolean }): Promise<Map<string, T>>;
   getAlarm(): Promise<number | null>;
   setAlarm(at: number): Promise<void>;
   deleteAlarm(): Promise<void>;
@@ -33,6 +34,8 @@ export interface ObjectContext {
 }
 
 export interface RelayEnvironment {
+  UMEDA_WORK?: RelayEnvironment['UMEDA_RELAY'];
+  UMEDA_VAULT?: import('./vault').VaultBucket;
   UMEDA_RELAY: { idFromName(name: string): unknown; get(id: unknown): { fetch(request: Request): Promise<Response> } };
   /** Owner public key only. No private key or LLM credential is deployed. */
   UMEDA_OWNER_PUBLIC_KEY?: string;

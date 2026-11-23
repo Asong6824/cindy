@@ -27,6 +27,10 @@ import { createProject } from './createProject.js';
 import { createMoveSession } from './moveSession.js';
 import { createTaskWorktreeHost } from './createTaskWorktree.js';
 import { sessionImportCallbacks } from '../session-import/agentTools.js';
+import { createKnowledgeTools } from '../vault-sync/knowledge.js';
+import { activeSelfHostedRelay } from '../device-link/selfHostedRelayRouting.js';
+import { executeWorkRecords } from '../work-records/host.js';
+import { executeWorkManagement } from '../work-management/host.js';
 import { listProjects, renameProject, removeProject, resolveSessionProject, readCurrentSessionProject } from './projectManagement.js';
 import { activeOwnerScopeKey, getActiveAppSession, isAppSessionBoundaryPending, ownerScopedUserDataPath } from '../appSessionState.js';
 import { botProfileDir } from '../maker-ipc/botProfileFolder.js';
@@ -1041,6 +1045,25 @@ export function createDesktopMcpProviders(deps: DesktopMcpProvidersDeps): LiziMc
       },
       askUserQuestionAsync: deps.askUserQuestionAsync,
       sessionImport: sessionImportCallbacks,
+      knowledgeAvailable: () => activeSelfHostedRelay()?.authMode === 'none',
+      workRecordsAvailable: () => activeSelfHostedRelay()?.authMode === 'none',
+      workManagementAvailable: () => activeSelfHostedRelay()?.authMode === 'none',
+      workManagement: (context, request) => withAccountDataAccess(context.sessionId, async assertCurrent => {
+        const result = await executeWorkManagement(context, request);
+        await assertCurrent(); return result;
+      }),
+      workRecords: (context, request) => withAccountDataAccess(context.sessionId, async assertCurrent => {
+        const result = await executeWorkRecords(context, request);
+        await assertCurrent(); return result;
+      }),
+      knowledge: createKnowledgeTools(() => {
+        const route = activeSelfHostedRelay(), owner = activeOwnerScopeKey();
+        if (!route || route.authMode !== 'none' || !owner || isAppSessionBoundaryPending()) return null;
+        return { userData: app.getPath('userData'), baseUrl: route.baseUrl,
+          isCurrent: () => !isAppSessionBoundaryPending() && activeOwnerScopeKey() === owner
+            && activeSelfHostedRelay()?.authMode === 'none'
+            && activeSelfHostedRelay()?.baseUrl === route.baseUrl && activeSelfHostedRelay()?.relayId === route.relayId };
+      }),
       renameSessions: async ({ changes, dryRun }) => {
         if (!tryGetDbClient()) {
           return { ok: false, errorCode: 'HOST_NOT_READY', message: 'localDb not ready' };

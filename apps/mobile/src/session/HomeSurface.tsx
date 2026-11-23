@@ -1,3 +1,4 @@
+import { UMEDA_STANDALONE } from '@/config/standalone';
 import { taskListSessionTarget } from './sessionDrawerNavigation';
 import type { ViewInstance } from 'react-native';
 import { useTaskListNavigation } from './useTaskListNavigation';
@@ -3636,6 +3637,12 @@ function HomeScreenContent({ active = true, width, newSessionInSystemBar = false
           setChromeMenuOpen(false);
           guardedPush('/plugins');
         }}
+        onOpenWork={UMEDA_STANDALONE ? () => { pendingMenuActionRef.current = null; setChromeMenuOpen(false); guardedPush('/work'); } : undefined}
+        onOpenVault={UMEDA_STANDALONE ? () => {
+          pendingMenuActionRef.current = null;
+          setChromeMenuOpen(false);
+          guardedPush('/vault');
+        } : undefined}
         onOpenDevices={() => {
           pendingMenuActionRef.current = null;
           setChromeMenuOpen(false);

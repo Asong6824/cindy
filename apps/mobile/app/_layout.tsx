@@ -1,3 +1,4 @@
+import { WorkRuntimeBridge } from '@/work-management/WorkRuntimeBridge';
 import { UMEDA_STANDALONE } from '@/config/standalone';
 import { SharedTaskListProvider } from '@/session/SharedTaskList';
 import { taskListScreenAnimation } from '@/session/taskListNavigationPolicy';
@@ -14,6 +15,7 @@ import { AndroidUpdateSheet } from '@/update/AndroidUpdateSheet';
 import { PeerFileTransport } from '@/device-link/peerFileTransport';
 import { startLocalDiagnostics } from '@/debug/localDiagnostics';
 import { MobileOutboxBridge } from '@/session/MobileOutboxBridge';
+import { LibraryRuntimeBridge } from '@/vault/LibraryRuntimeBridge';
 import { RemoteHistoryPrefetchBridge } from '@/session/RemoteHistoryPrefetchBridge';
 import { UsageWidgetBridge } from '@/widgets/UsageWidgetBridge';
 import { HandheldModeBridge } from '@/handheld/HandheldModeBridge';
@@ -424,6 +426,8 @@ function MobileBusinessRoot() {
         <PeerFileTransport />
         <PrecreatedWorktreeRecoveryBridge />
         <MobileOutboxBridge />
+        <LibraryRuntimeBridge />
+        <WorkRuntimeBridge />
         <RemoteHistoryPrefetchBridge />
         <UsageWidgetBridge />
         {/* 掌机模式:手柄语音键 / 焦点导航 / 副屏(仅含 cindy-handheld 的 Android 原生包,不渲染 UI) */}

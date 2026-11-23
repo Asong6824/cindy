@@ -5,6 +5,10 @@
   "sourceLocale": "en",
   "punctuationExempt": ["desktop:settings.help.qnaFeedbackBodyTemplate"],
   "terms": [
+    {"id":"umeda-work-management","status":"proposed","en":"Work","translations":{"zh-CN":"工作管理","zh-TW":"工作管理","ja":"仕事の管理","ko":"업무 관리"},"checkCase":false,"note":"个人 Umeda 的应用级目标、项目与待办入口；不指代码目录，不替换 Cindy 执行任务列表。"},
+    {"id":"umeda-business-todo","status":"proposed","en":"To-do","translations":{"zh-CN":"待办","zh-TW":"待辦","ja":"やること","ko":"할 일"},"checkCase":false,"note":"Umeda 工作管理中的业务任务，承接旧 KOS task；与 Agent 执行任务 Session 分开，可以由人完成或关联多段执行。"},
+    {"id":"umeda-kos-workbench","status":"proposed","en":"KOS workbench","translations":{"zh-CN":"KOS 工作台","zh-TW":"KOS 工作台"},"checkCase":false,"note":"Umeda 内的个人资料、目标、行动与阅读看板；不指伙伴近况浮层，也不代表 Agent 任务或执行链路。KOS task 对象在此界面称行动事项，避免与 Cindy session 的任务混淆。"},
+    {"id": "umeda-vault", "status": "proposed", "en": "Vault", "translations": {"zh-CN": "资料库", "zh-TW": "資料庫", "ja": "資料庫", "ko": "자료실"}, "note": "Umeda 跨设备同步的文档与附件内容库；不代表 Agent 任务工作目录。", "checkCase": false},
     {"id":"plugin-community","status":"proposed","en":"Community","translations":{"zh-CN":"社区","zh-TW":"社群","ja":"コミュニティ","ko":"커뮤니티","fr":"Communauté","es":"Comunidad","de":"Community","pt-BR":"Comunidade","pt-PT":"Comunidade","zh-Hans-x-lzh":"社区","zh-Hant-x-lzh":"社群"},"note":"插件公开来源下的社区发布者身份标识，与官方并列；用户于 2026-11-09 确认设计。社区作者继续不公开署名；不表示个人私有市场或运行时信任。"},
     {"id":"automation-trigger-mode","status":"proposed","en":"Trigger mode","translations":{"zh-CN":"触发方式","zh-TW":"觸發方式","ja":"トリガー方式","ko":"트리거 방식"},"note":"自动化何时运行的选择：定时、手动或 Webhook。独立于执行方式（AI 任务或脚本），用户于 2026-11-04 选择此交互方向。"},
     {"id": "request-refund", "status": "proposed", "en": "Request Refund", "translations": {"zh-CN": "申请退款", "zh-TW": "申請退款", "ja": "返金を申請", "ko": "환불 신청", "fr": "Demander un remboursement", "es": "Solicitar reembolso", "de": "Rückerstattung anfordern", "pt-PT": "Pedir reembolso", "pt-BR": "Solicitar reembolso", "zh-Hant-x-lzh": "請退款", "zh-Hans-x-lzh": "请退款"}, "note": "订单行的邮件退款申请入口；由用户确认使用客服邮件处理，不代表自动退款。"},

@@ -1157,6 +1157,27 @@ test("devEnvPrefix omits harness envs when unset (whitelist stays opt-in)", () =
 	assert.equal(devEnvPrefix({}, "darwin"), "CINDY_CUA_SMOKE='0' ");
 });
 
+// Regression: the Mac update's explicit 12 GiB override was dropped at the new
+// Terminal boundary, so Forge still exhausted the default 6 GiB. Existing heap
+// helper tests do not launch through this prefix. Minimal input: an explicit
+// NODE_OPTIONS and an older value in the target shell. Tier: unit; real child
+// reads only its process options, with no app, database or network access.
+// Standalone restart + heap helper files: 1.20s locally (2026-11-22).
+test("devEnvPrefix forwards explicit Node options and clears stale Terminal options when omitted", () => {
+	const options = "--max-old-space-size=12288 --trace-warnings";
+	const node = process.platform === "win32" ? "%CINDY_TEST_NODE%" : "$CINDY_TEST_NODE";
+	const result = spawnSync(`${devEnvPrefix({ NODE_OPTIONS: options })}"${node}" -p "process.env.NODE_OPTIONS"`, {
+		shell: true,
+		env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=6144", CINDY_TEST_NODE: process.execPath },
+		encoding: "utf8",
+		timeout: 5000,
+	});
+	assert.equal(result.status, 0, result.stderr);
+	assert.equal(result.stdout.trim(), options);
+	assert.ok(unsetKeys(darwinStaleDevEnvUnset({})).includes("NODE_OPTIONS"));
+	assert.ok(!unsetKeys(darwinStaleDevEnvUnset({ NODE_OPTIONS: options })).includes("NODE_OPTIONS"));
+});
+
 test("devEnvPrefix passes the explicit isolated OAuth write escape hatch", () => {
 	assert.equal(
 		devEnvPrefix(

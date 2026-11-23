@@ -34,6 +34,9 @@ vi.mock('../SidebarTopNav', () => ({
   SidebarTopNav: () => <div data-testid="sidebar-top-nav" />,
 }));
 
+// This shell test isolates feature-slot mounting; navigation has its own owner/API tests.
+vi.mock('@/features/work-management/WorkNavEntry', () => ({ WorkNavEntry: () => null }));
+
 vi.mock('../UpdateBanner', () => ({
   UpdateBanner: () => null,
 }));

@@ -143,5 +143,14 @@
   },
   "gallery": {
     "cacheMiss": "此媒體尚未快取於手機，請待連上機後再啟之"
+  },
+  "vault": {
+    "title": "資料庫",
+    "cloud": "雲端檔案",
+    "offline": "離線 · 已儲存內容",
+    "refresh": "重新整理",
+    "openFile": "下載並開啟",
+    "readError": "暫時無法讀取此檔案，請連線後下載。",
+    "empty": "尚無同步的檔案。"
   }
 }

@@ -656,7 +656,9 @@
     "taskCleared": "Diese Aufgabe wurde nach dem Senden der Nachricht geleert. Die gespeicherte Nachricht wurde zur Prüfung aufbewahrt.",
     "restoreFailed": "Gespeicherte Nachrichten konnten nicht wiederhergestellt werden. Sie wurden nicht gelöscht. Starte die App neu und versuche es erneut.",
     "recoveryTarget": "Behalte beim Wiederherstellen dieser Aufgabe den ursprünglichen Computer bei. Die späteren Nachrichten sind noch gespeichert.",
-    "taskAlreadyCreated": "Diese Aufgabe existiert bereits auf dem Computer. Ihre gespeicherten Nachrichten werden dort fortgesetzt."
+    "taskAlreadyCreated": "Diese Aufgabe existiert bereits auf dem Computer. Ihre gespeicherten Nachrichten werden dort fortgesetzt.",
+    "cloudFailed": "Diese Nachricht wurde nicht an den Computer zugestellt. Prüfe die Aufgabe, bevor du eine neue Nachricht sendest.",
+    "cloudExpired": "Der Computer hat diese Nachricht nicht innerhalb von 24 Stunden abgeholt. Die Nachricht ist abgelaufen."
   },
   "remoteError": {
     "SSH_HARNESS_SWITCH_UNSUPPORTED": "Bei dieser SSH-Aufgabe lässt sich der Harness nicht wechseln. Wähle ein Modell im aktuellen Harness oder erstelle eine neue SSH-Aufgabe mit dem benötigten Harness.",

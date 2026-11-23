@@ -411,6 +411,8 @@ export function PendingSendBubble({
     ? { left: badgeAnchor.left } : { right: 0 };
   const statusLabel = failed
     ? t('message.queue.sendFailedMessage', { text: bubbleLabel })
+    : item.cloudQueued
+      ? t('message.queue.cloudQueuedMessage', { text: bubbleLabel })
     : waiting
       ? t('message.queue.waitingMessage', { text: bubbleLabel })
     : spinning
@@ -616,8 +618,8 @@ export function PendingSendBubble({
               {failedImages > 0 ? t('message.queue.imagesNotUploaded', { count: failedImages }) : t('message.queue.notSent')}
             </Text>
             <View style={styles.statusDivider} />
-            <StatusAction busy={actions.busy} label={t('message.queue.retry')} primary
-              onPress={() => actions.onRetryOutbox(item.clientId)} testID={`pendingSend.outboxRetry.${item.clientId}`} />
+            {!item.cloudTerminal ? <StatusAction busy={actions.busy} label={t('message.queue.retry')} primary
+              onPress={() => actions.onRetryOutbox(item.clientId)} testID={`pendingSend.outboxRetry.${item.clientId}`} /> : null}
             {item.canCancel !== false ? (
               <StatusAction busy={actions.busy} label={t('message.queue.delete')}
                 onPress={() => actions.onRemoveOutbox(item.clientId)} testID={`pendingSend.outboxRemove.${item.clientId}`} />
@@ -627,7 +629,7 @@ export function PendingSendBubble({
           <CompanionFadeIn distance={0} duration={motionDuration.fast} play={statusShown === 'revealed'}>
           <View style={styles.statusActions}>
             <Text numberOfLines={1} style={styles.statusText}>
-              {t(item.waitingFor === 'network' ? 'message.queue.waitingForNetwork' : 'message.queue.waitingForComputer')}
+              {t(item.cloudQueued ? 'message.queue.cloudQueued' : item.waitingFor === 'network' ? 'message.queue.waitingForNetwork' : 'message.queue.waitingForComputer')}
             </Text>
             {outbox && item.canCancel !== false ? (
               <>

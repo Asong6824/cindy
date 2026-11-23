@@ -1,5 +1,45 @@
 # 配置分层与 override 契约
 
+## Umeda 资料库本地绑定（2026-11-20）
+
+个人无鉴权中转支持可选的 `userData/vault-sync.json`：
+`{ "version": 1, "vaults": [{ "id": "<public-id>", "name": "<display-name>", "directory": "<absolute-directory>" }] }`。
+第一阶段不存在该文件即不启用；2026-11-21 的个人版源码改为首次自动接入云端已有库，
+云端为空时创建固定 ID `umeda-default`，避免多个新端各建同名库。托管根位于
+`userData/umeda-library/<route-sha256>/<vault-id>/files`，绑定标记 `managed: true`。
+文件损坏仍报错保留，不重置为空或替换用户内容；显式空的 `vaults: []` 保持停用。
+旧外部目录先复制并逐文件校验，保留原目录、迁移回执与旧配置备份；切换绑定发生在下一轮
+同步前，沿用同一 Vault ID 与同步检查点，不启动第二个文件同步写者。中断或源变化可续作，
+发现目标被另行修改或配置变化时停止切换，不合并覆盖。原目录不再是切换后的同步写入入口。
+绝对路径不上传；公开 ID 和名称用于连接其他设备。
+本机同步状态按中转 URL 摘要和资料库 ID 隔离，位于 `userData/vault-sync/`；
+检查点与历史副本不进入 Vault、Git 或跨设备文件同步。
+不能自动把框架仓内的分发模板当作个人资料库。
+
+手机资料服务的 SQLite 为应用 Documents 默认 SQLite 目录中的 `umeda-library-v1.sqlite`，
+0.2.0 schema 版本 1；`library_values(scope,key,value)` 按既有 owner／storage origin／relay ID 摘要
+隔离。旧 `umeda.workbench.v1.<scope>.*` 懒复制、保留原记录；NULL 行表示已移除，不再回读
+旧值。事务同时提交目录和 outbox，写入串行化，路由失效时事务回滚。
+这次增加 `expo-sqlite` 原生依赖，需要冷构建，不能只更新旧安装的内嵌 JS。
+
+0.3.0 追加 schema 2，原表保留；`library_catalogs`／`library_documents`／`library_outbox`
+承担结构化目录和已保存操作，`library_content` 保存内容引用，`library_search`／`library_fts`
+是本机搜索投影，`library_kv` 保存偏好、离线保留清单及编辑中草稿。手机内容位于
+应用 Documents 的 `umeda-library/<scope>/content/<sha256>`，桌面位于插件 Library 的
+`content/<sha256>`。正文用 UTF-8、附件块用原始字节保存，不把 Base64 JSON 当内容文件。
+文件先写暂存／原子就位并校验，数据库再提交引用；中断产生的未引用文件保留，不自动回收。
+新版优先读取新表，缺少记录才复制旧来源；旧程序不能据保留的旧队列直接接管新版写入。
+手机升级 schema 2 无新增原生依赖，仍须将最新 JS 打入本次自用安装包。
+
+独立手机包切换同一中转的公开域名时，构建者可显式提供
+`EXPO_PUBLIC_UMEDA_PREVIOUS_RELAY_URL`，指向原始缓存所属的 HTTPS origin。
+仅当当前路线等于本次构建的 `EXPO_PUBLIC_UMEDA_RELAY_URL`、两个 origin 合法且为个人无验证
+模式时，资料库缓存／草稿／待同步队列继续使用原存储命名空间；owner 与 relay ID 仍参与隔离。
+其他运行时路线、账号线路或非法地址不套用别名。HTTP／WS 和在途检查始终使用真实当前地址。
+该声明只用于构建者已验证属于同一后端的地址，不信任服务器返回的别名；后续构建保留原始
+存储 origin，不能随每次改名向前滚动。声明与私人端点留在仓库外，原生指纹不因此改变。
+
+
 > **状态**：权威开发规则（authoritative）
 > **读取时机**：新增或修改 Settings UI、配置文件、本地偏好存储、运行时 profile，或
 > agent／MCP／provider 相关开关之前

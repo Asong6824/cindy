@@ -143,5 +143,14 @@
   },
   "gallery": {
     "cacheMiss": "此媒体尚未缓存于手机，请待连上机后再启之"
+  },
+  "vault": {
+    "title": "资料库",
+    "cloud": "云端文件",
+    "offline": "离线 · 已保存内容",
+    "refresh": "刷新",
+    "openFile": "下载并打开",
+    "readError": "暂时无法读取此文件，请联网后下载。",
+    "empty": "还没有同步的文件。"
   }
 }

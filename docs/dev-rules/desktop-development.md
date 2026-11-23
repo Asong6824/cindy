@@ -66,6 +66,11 @@ Agent 没有 TTY 时，dev 会在新开的 Terminal（macOS）／cmd（Windows�
 只保留前 8MB，足够覆盖启动过程；之后的运行日志看按天轮转的 `main-*.log`），窗口关掉后仍可查；启动失败时命令会直接打印日志末尾，verdict 带 `log=` 指向该文件。
 排查启动失败先读这份日志，不要靠反复重启猜原因。
 
+显式设置的 `NODE_OPTIONS` 会随本次 restart 转发到新 Terminal／cmd；未设置时，macOS
+启动器清除 Terminal 遗留值，再由开发包装器使用默认内存参数。冷构建报 heap out of memory
+时先核对实际进程额度与机器资源，再为本次启动设置额度；不要把主窗口短暂 ready 当成
+构建服务持续可用。2026-11-22 修复了 Terminal 转发遗漏导致显式内存额度未生效的问题。
+
 停止旧实例后的 macOS Terminal 标签页清理，只访问已经运行的 Terminal，并按旧实例的精确
 TTY 匹配标签页；Terminal 未运行时直接跳过，不能因清理 iTerm 等终端的 TTY 而将它启动。
 实现与回归见 `scripts/restart-desktop-remote.mjs` 和 `scripts/__tests__/restart-desktop-remote.test.mjs`。

@@ -22,7 +22,9 @@ import { i18n } from "@/i18n";
 import {
   createDurableOutboxDelivery,
   type DeliveryProjection,
+  type DurableOutboxDeliveryDeps,
 } from "./durableOutboxDelivery";
+import { canUseUmedaOutbox, createUmedaOutboxDelivery } from './umedaOutbox';
 import {
   mobileDurableOutbox,
   mobileOutboxOwnerKey,
@@ -171,10 +173,11 @@ export function MobileOutboxBridge() {
       dismissCancelled: dismissRecoveredPrecreatedSession,
       store: remoteSessionStore,
     });
-    const delivery = createDurableOutboxDelivery({
+    const deliveryDeps: DurableOutboxDeliveryDeps = {
       store: mobileDurableOutbox,
       isCurrent,
-      canRun,
+      canRun: r => canRun(r) || (isCurrent() && AppState.currentState === 'active' && !hidden(r)
+        && canUseUmedaOutbox(r, remoteSessionStore.getSessions())),
       sessionPolicy,
       projection: async (r) => {
         captureProjectionEpoch(r);
@@ -371,12 +374,27 @@ export function MobileOutboxBridge() {
         formatRemoteError(error).includes("DEVICE_LINK_MEDIA_TRANSFER_FAILED"),
       retryable: (error) =>
         isAutoRecoveringRemoteError(error) ||
+        ['NETWORK_UNAVAILABLE', 'REQUEST_TIMEOUT', 'RATE_LIMITED', 'INTERNAL'].includes(
+          typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '') ||
         (error instanceof MobileSessionReferenceError &&
           error.code === "SESSION_REFERENCE_OFFLINE"),
       describe: formatRemoteError,
       confirmationMessage: i18n.t("session.outbox.confirmationRequired"),
       clearedMessage: i18n.t("session.outbox.taskCleared"),
+    };
+    const relayDelivery = createUmedaOutboxDelivery({
+      sessions: () => remoteSessionStore.getSessions(), guard,
+      isCurrent: r => isCurrent() && mobileDurableOutbox.getSnapshot().includes(r),
+      upload: deliveryDeps.upload, discardUploads: deliveryDeps.discardUploads,
+      failure: code => i18n.t(code === 'COMMAND_EXPIRED' ? 'session.outbox.cloudExpired'
+        : code === 'REMOTE_OPTIMISTIC_INPUT_CLEARED' ? 'session.outbox.taskCleared' : 'session.outbox.cloudFailed'),
     });
+    deliveryDeps.relayDelivery = async (r, update) => {
+      if (hidden(r)) return 'fallback';
+      const outcome = await relayDelivery(r, update);
+      return outcome === 'fallback' && !canRun(r) ? 'waiting' : outcome;
+    };
+    const delivery = createDurableOutboxDelivery(deliveryDeps);
     runnerRef.current = delivery;
     const run = () => {
       messageLeases.refresh();

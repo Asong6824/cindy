@@ -1,0 +1,54 @@
+const zh = {
+  indexBook: '建立全文索引', bookIndexed: '全文已索引', bookNoText: '未提取到文字（未启用 OCR）', indexingBook: '正在提取文字', stopIndexing: '停止提取', resumeIndexing: '继续建立索引', indexBookError: '索引尚未完成，已提取部分保留；请重试。支持 32 MiB 内原书及提取文字，最多 5000 段；扫描版 PDF 暂不支持文字识别。', bookSection: '页／章节',
+  moveDocument: '移动或重命名', destinationPath: '目标路径', moveHint: '填写完整相对路径，例如「读书/新书名.md」。离线时先保存在本机；联网后同步。已有链接可通过文档别名继续打开。', moveInvalidPath: '请输入有效的新路径。', moveChanged: '文档已更新或目标路径已被占用，请同步后重试。', moveFailed: '移动暂未完成，请先同步新文档或处理已有移动；内容已保留。', movePending: '移动待同步', moveConflict: '移动冲突，原文件仍保留', retryMove: '按最新版本重试', cancelMove: '撤销移动请求',
+  storageSpace: '本机空间', storageScope: '统计本版已登记的正文与附件对象，按内容去重。未计入数据库、旧版数据、编辑草稿和 Mac 原始资料目录。', storageRetention: '离线保留和待同步内容会保留。本轮仅查看占用，不自动清理文件。', storageUnavailable: '当前宿主尚不支持空间统计。', cacheBytes: '正文与附件缓存', pendingBytes: '待同步正文', pinnedBytes: '已选择离线保留', cacheOnlyBytes: '未固定的缓存（仅统计）',
+
+  fullTextSearch: '搜索名称和已索引正文', searchCoverage: '正文搜索覆盖', searchCoverageHint: '文本支持 240 KiB 内正文；PDF／EPUB 可单独建立全文索引。提取需保持本页打开，已完成部分保存在本机；扫描版 PDF 暂不支持 OCR。',
+  offlineReady: '离线保留', downloadDocuments: '下载文档正文', keepOffline: '保留离线', unpinOffline: '取消离线保留', availableOffline: '可离线读取', downloadPending: '等待下载', downloadPaused: '下载未完成', narrowSearch: '结果较多，请缩小搜索范围',
+  versionChanged: '文档已在其他地方更新，请关闭文档并重新打开，再恢复历史版本。', syncBeforeRestore: '请先完成这份文档的待同步修改，再恢复历史版本。',
+  versionPreviewUnavailable: '此格式或大小暂不支持原文预览，仍可恢复。',
+  trash: '回收站',
+  versionHistory: '历史版本', versionPreview: '版本原文', restoreVersion: '恢复此版本', deletedVersion: '删除记录', loadMore: '加载更多', restoreHint: '恢复会创建一个新版本，已有历史仍会保留。',
+  unsupportedFormat: '此格式暂不支持预览。',
+  workbench: '工作台', files: '资料库', today: '今日', action: '行动', input: '输入', knowledge: '知识', review: '审阅与复盘', system: '系统',
+  capture: '快速记录', create: '新建', refresh: '同步', search: '搜索名称、内容摘要或标签', empty: '这里还没有内容', loading: '正在同步文档索引',
+  offline: '离线 · 使用本机内容', synced: '已同步', pending: '项待同步', close: '关闭', back: '返回', edit: '编辑', save: '保存', saved: '已保存在本机，联网后自动同步',
+  title: '标题', content: '内容', type: '类型', all: '全部', task: '行动事项', project: '项目', goal: '目标', source: '材料', method: '方法', research: '研究',
+  done: '完成', schedule: '安排到今天', defer: '调整日期', due: '截止日期', status: '状态', priority: '优先级', related: '关联项目', none: '未关联',
+  goals: '半年目标', progress: '年度进度', heatmap: '活动记录', next: '下一项', noSchedule: '今天还没有安排具体时刻', noGoals: '本期还没有目标',
+  year: '年', month: '月', week: '周', day: '日', overdue: '已逾期', blocked: '受阻', stale: '项目停滞', backlog: '材料积压', pendingReview: '待审阅',
+  currentActions: '当前行动', projects: '项目进展', inputPipeline: '材料处理进度', inputQueue: '材料队列', inbox: '收件箱', assets: '知识资产',
+  verified: '已核实', mature: '已成熟', diary: '日记', reflection: '认知记录', sourceEvidence: '内容与来源', open: '打开', approve: '标记已审阅',
+  recentReview: '日记与复盘', noReview: '没有待审阅的内容', health: '内容检查', issues: '处属性待检查', healthy: '文档属性可正常读取',
+  syncState: '同步状态', cached: '个文档已建立索引', conflicts: '份冲突副本已保留', recovery: '本机草稿', noPending: '没有待同步的修改',
+  rawEditor: '原文编辑', properties: '文档属性', draftRestored: '已恢复本机编辑草稿', saveError: '保存失败，编辑内容仍保留在本机',
+  newDocument: '新建文档', captureHint: '先记下来，之后再整理。', appearance: '阅读设置', fontSize: '字号', toc: '目录', annotations: '划线与批注',
+  readerSearch: '搜索文档', previousPage: '上一页', nextPage: '下一页', highlight: '划线', annotate: '批注', excerpt: '摘录到收件箱', note: '批注内容',
+  noAnnotations: '选择原文后可划线或添加批注', annotationSaved: '批注已保存在本机', removeAnnotation: '删除批注', reading: '阅读',
+  unknownProgress: '尚无结果指标', evidence: '条结果证据', readError: '暂时无法读取内容，已有草稿和缓存仍保留在本机', retry: '重新读取',
+  layout: '调整布局', finishLayout: '完成布局', undo: '撤销', redo: '重做', resetLayout: '恢复默认', move: '移动卡片', resize: '调整卡片大小',
+  templateNote: '这些是你直接创建的内容；保存不会调用模型。', fileCount: '个文件', noVault: '尚未连接资料库', noVaultHint: '在 Mac 绑定内容目录后，文件会出现在这里。',
+  processing: '正在处理', textTooLarge: '文档较大，暂不在此编辑。', saveDraft: '保留草稿', localCopy: '本机缓存', cachedHint: '打开过的文档和附件可离线读取。',
+  captured: '已收集', extracted: '已摘录', summarized: '已有摘要', reviewed: '已审阅', linked: '已关联', archived: '已归档', ignored: '已忽略',
+  todo: '待办', doing: '进行中', cancelled: '已取消', draft: '草稿', active: '进行中', paused: '已暂停', achieved: '已达成', abandoned: '已放弃',
+  idea: '构想', completed: '已完成', deprecated: '已停用', candidate: '待验证', usable: '可使用', trusted: '已验证', pendingState: '待审阅',
+};
+type Key = keyof typeof zh;
+const en: Record<Key, string> = {
+  indexBook: 'Index full text', bookIndexed: 'Text indexed', bookNoText: 'No text extracted (OCR unavailable)', indexingBook: 'Extracting text', stopIndexing: 'Stop extraction', resumeIndexing: 'Resume indexing', indexBookError: 'Index incomplete; extracted parts are preserved. Try again. Supports source and extracted text up to 32 MiB and 5000 parts. Scanned PDFs require OCR, which is unavailable.', bookSection: 'Page / chapter',
+  moveDocument: 'Move or rename', destinationPath: 'Destination path', moveHint: 'Enter a full relative path, such as Books/New title.md. Saved locally offline, then synced when connected. Existing links can resolve through document aliases.', moveInvalidPath: 'Enter a valid new path.', moveChanged: 'The document changed or the destination is occupied. Sync and try again.', moveFailed: 'Move not completed. Sync new documents or resolve the existing move first; content is preserved.', movePending: 'Move waiting to sync', moveConflict: 'Move conflict; original files preserved', retryMove: 'Retry with latest version', cancelMove: 'Cancel move request',
+  storageSpace: 'Local storage', storageScope: 'Verified content objects registered by this version, deduplicated by content. Excludes databases, legacy data, editor drafts and original Mac source folders.', storageRetention: 'Offline and pending content is preserved. This view reports usage and does not remove files.', storageUnavailable: 'Storage reporting is unavailable on this host.', cacheBytes: 'Text and attachment cache', pendingBytes: 'Pending text', pinnedBytes: 'Kept offline', cacheOnlyBytes: 'Unpinned cache (report only)',
+
+  fullTextSearch: 'Search names and indexed text', searchCoverage: 'Text search coverage', searchCoverageHint: 'Text files up to 240 KiB are supported. PDF and EPUB can be indexed individually. Keep this view open while extracting; accepted parts persist locally. OCR is unavailable.',
+  offlineReady: 'Kept offline', downloadDocuments: 'Download document text', keepOffline: 'Keep offline', unpinOffline: 'Stop keeping offline', availableOffline: 'Available offline', downloadPending: 'Waiting for download', downloadPaused: 'Download incomplete', narrowSearch: 'Many results. Narrow your search.',
+  versionChanged: 'This document changed elsewhere. Close and reopen it before restoring.', syncBeforeRestore: 'Sync this document’s pending edits before restoring a version.',
+  versionPreviewUnavailable: 'Source preview is unavailable for this format or size. You can still restore it.',
+  trash: 'Trash',
+  versionHistory: 'Version history', versionPreview: 'Version source', restoreVersion: 'Restore this version', deletedVersion: 'Deletion', loadMore: 'Load more', restoreHint: 'Restoring creates a new version and preserves existing history.',
+  unsupportedFormat: 'Preview is unavailable for this format.',
+  workbench:'Workbench',files:'Vault',today:'Today',action:'Actions',input:'Inbox',knowledge:'Knowledge',review:'Review',system:'System',capture:'Quick capture',create:'New',refresh:'Sync',search:'Search titles, excerpts or tags',empty:'Nothing here yet',loading:'Syncing document index',offline:'Offline · local content',synced:'Synced',pending:'pending changes',close:'Close',back:'Back',edit:'Edit',save:'Save',saved:'Saved locally; changes sync when connected',title:'Title',content:'Content',type:'Type',all:'All',task:'Action item',project:'Project',goal:'Goal',source:'Source',method:'Method',research:'Research',done:'Done',schedule:'Schedule today',defer:'Change date',due:'Due date',status:'Status',priority:'Priority',related:'Project',none:'Unassigned',goals:'Half-year goals',progress:'Year in progress',heatmap:'Activity',next:'Next',noSchedule:'No times scheduled today',noGoals:'No goals for this period',year:'Year',month:'Month',week:'Week',day:'Day',overdue:'Overdue',blocked:'Blocked',stale:'Stale projects',backlog:'Source backlog',pendingReview:'Needs review',currentActions:'Current actions',projects:'Project progress',inputPipeline:'Source pipeline',inputQueue:'Source queue',inbox:'Inbox',assets:'Knowledge assets',verified:'Verified',mature:'Mature',diary:'Journal',reflection:'Reflection',sourceEvidence:'Content and sources',open:'Open',approve:'Mark reviewed',recentReview:'Journals and reflections',noReview:'Nothing awaiting review',health:'Content checks',issues:'attribute issues',healthy:'Document attributes are readable',syncState:'Sync status',cached:'indexed documents',conflicts:'conflict copies preserved',recovery:'Local drafts',noPending:'No changes waiting to sync',rawEditor:'Edit source',properties:'Properties',draftRestored:'Local editing draft restored',saveError:'Save failed; your text remains on this device',newDocument:'New document',captureHint:'Capture now, organize later.',appearance:'Reading settings',fontSize:'Text size',toc:'Contents',annotations:'Highlights and notes',readerSearch:'Search document',previousPage:'Previous page',nextPage:'Next page',highlight:'Highlight',annotate:'Annotate',excerpt:'Save excerpt to inbox',note:'Note',noAnnotations:'Select text to highlight or annotate',annotationSaved:'Note saved locally',removeAnnotation:'Delete note',reading:'Reading',unknownProgress:'No result metrics yet',evidence:'result references',readError:'Content is unavailable; existing drafts and downloads are preserved',retry:'Read again',layout:'Edit layout',finishLayout:'Done',undo:'Undo',redo:'Redo',resetLayout:'Reset layout',move:'Move card',resize:'Resize card',templateNote:'These are your direct edits. Saving does not call a model.',fileCount:'files',noVault:'No Vault connected',noVaultHint:'Bind a content folder on your Mac to start syncing.',processing:'Working',textTooLarge:'This document is too large for this editor.',saveDraft:'Keep draft',localCopy:'Local downloads',cachedHint:'Previously opened documents and attachments remain available offline.',captured:'Captured',extracted:'Extracted',summarized:'Summarized',reviewed:'Reviewed',linked:'Linked',archived:'Archived',ignored:'Ignored',todo:'To do',doing:'In progress',cancelled:'Cancelled',draft:'Draft',active:'Active',paused:'Paused',achieved:'Achieved',abandoned:'Abandoned',idea:'Idea',completed:'Completed',deprecated:'Deprecated',candidate:'Candidate',usable:'Usable',trusted:'Trusted',pendingState:'Needs review',
+};
+let locale = 'zh';
+export function setLocale(value: string) { locale = value; }
+export function t(key: Key): string { return locale.startsWith('zh') ? zh[key] : en[key]; }
+export function stateLabel(value: string): string { return value in zh ? t(value as Key) : value; }

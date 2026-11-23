@@ -2519,3 +2519,53 @@ export const githubObservations = sqliteTable('github_observations', {
   state: text('state').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
+
+/** Personal Umeda business objects; belong to the existing owner Profile DB. */
+export const umedaWorkItems = sqliteTable('umeda_work_items', {
+  id: text('id').primaryKey(),
+  kind: text('kind').notNull(),
+  title: text('title').notNull(),
+  status: text('status').notNull(),
+  data: text('data').notNull(),
+  revision: integer('revision').notNull(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+}, table => [index('umeda_work_kind_idx').on(table.kind, table.id)]);
+
+/** Append-only work reports and durable idempotency receipts. */
+export const umedaWorkRecords = sqliteTable('umeda_work_records', {
+  sequence: integer('sequence').primaryKey({ autoIncrement: true }),
+  requestId: text('request_id').notNull().unique(),
+  fingerprint: text('fingerprint').notNull(),
+  data: text('data').notNull(),
+  result: text('result').notNull(),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const umedaWorkRecordItems = sqliteTable('umeda_work_record_items', {
+  requestId: text('request_id').notNull().references(() => umedaWorkRecords.requestId),
+  itemId: text('item_id').notNull().references(() => umedaWorkItems.id),
+}, table => [primaryKey({ columns: [table.requestId, table.itemId] }), index('umeda_work_record_item_idx').on(table.itemId)]);
+
+/** Per-profile business replica. Scope is bound once; route changes never upload old data implicitly. */
+export const umedaWorkSyncState = sqliteTable('umeda_work_sync_state', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+});
+export const umedaWorkOutbox = sqliteTable('umeda_work_outbox', {
+  requestId: text('request_id').primaryKey(),
+  envelope: text('envelope').notNull(),
+  state: text('state').notNull(),
+  localOrder: integer('local_order').notNull(),
+  error: text('error'),
+}, table => [index('umeda_work_outbox_order_idx').on(table.state, table.localOrder)]);
+export const umedaWorkConfirmedItems = sqliteTable('umeda_work_confirmed_items', {
+  id: text('id').primaryKey(),
+  data: text('data').notNull(),
+});
+
+/** Shared accepted journal; original local receipts remain immutable. */
+export const umedaWorkConfirmedRecords = sqliteTable('umeda_work_confirmed_records', {
+  requestId: text('request_id').primaryKey(),
+  data: text('data').notNull(),
+});

@@ -260,7 +260,9 @@
     "queued": "Na fila",
     "retryImage": "Enviar esta imagem novamente",
     "waitingMessage": "Aguardando envio: {{text}}",
-    "imagesNotUploaded_many": "{{count}} imagens não foram enviadas"
+    "imagesNotUploaded_many": "{{count}} imagens não foram enviadas",
+    "cloudQueued": "Salvo na nuvem; aguardando o computador",
+    "cloudQueuedMessage": "Salvo na nuvem; aguardando o computador: {{text}}"
   },
   "systemCard": {
     "pluginModelRoute": {

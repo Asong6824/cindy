@@ -4,6 +4,9 @@
 产品、设计与交付规则仍然适用。代码、共享判据与测试入口见
 [仓库地图](../../docs/dev-rules/repo-map.md#按用户行为定位)。
 
+- 修改 Umeda 的 `src/vault/`、KOS WebView、资料持久化／离线／同步或原生分工前，先读
+  [Umeda 客户端架构](../../docs/dev-rules/umeda-client-architecture.md)；区分旧 KV／HTTP 兼容桥与
+  应用持有的资料服务，脱离 WebView 的服务也不能承诺无限后台执行。
 - 开发、调试或验证 Mobile 时，必须先读[Mobile 开发](../../docs/dev-rules/mobile-development.md)。
 - 修改本模块的原生配置、原生依赖、config plugin 或原生模块（`app.json`、
   `app.config.js`、`eas.json`、`package.json`、`plugins/`、`modules/` 等会

@@ -143,5 +143,14 @@
   },
   "gallery": {
     "cacheMiss": "Ce média n'est pas encore en cache sur votre téléphone. Rouvrez-le une fois votre ordinateur connecté"
+  },
+  "vault": {
+    "title": "Bibliothèque",
+    "cloud": "Fichiers cloud",
+    "offline": "Hors ligne · contenu enregistré",
+    "refresh": "Actualiser",
+    "openFile": "Télécharger et ouvrir",
+    "readError": "Ce fichier est indisponible. Connectez-vous pour le télécharger.",
+    "empty": "Aucun fichier synchronisé."
   }
 }

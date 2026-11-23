@@ -61,6 +61,8 @@ import {
 import { createRemoteWorkingDirGuard } from '../device-link/remote-workdir-guard';
 import { createIpcError } from '../../shared/ipc-errors';
 import { __testing as registry } from '../device-link/invoke-registry';
+import { executeUmedaCommand } from '../device-link/umedaCommands';
+import { getDeviceLinkInvokeContext } from '../device-link/invoke-context';
 import type { InvokeResultPayload } from '@cindy/device-link';
 
 const SRC = 'controller-device';
@@ -120,6 +122,37 @@ function registerHandler(channel: string, impl: (...args: unknown[]) => unknown)
 }
 
 describe('device-link host dispatch (runInvoke) — real gate + async fs guard + routing', () => {
+  // Unit branch in this host fixture: cloud delivery must use the same live remote
+  // permission/revocation gates and enqueue contract, not a synthetic privileged IPC.
+  it('admits durable cloud input through the ordinary gates and never equates a failed enqueue with acceptance', async () => {
+    const command = { clientId: 'cloud-input', sourceDeviceId: SRC, targetDeviceId: 'desktop', sessionId: 'session',
+      sendAtMs: 1, expectedClearBoundaryMs: null, leaseId: 'lease', sourcePlatform: 'ios', sourceName: 'Phone',
+      message: { clientId: 'cloud-input', durableDelivery: true, text: 'test' } };
+    let platform: string | undefined;
+    registry.register('maker:input:get-projection', async () => ({ inputDeliveryVersion: 1, deliveryReceipts: [{ clientId: 'cloud-input', state: 'unknown' }] }));
+    const handler = vi.fn(async () => { platform = getDeviceLinkInvokeContext()?.controllerPlatform; return { pendingQueue: [] }; });
+    registry.register('maker:input:enqueue', handler);
+    expect(await executeUmedaCommand(command)).toEqual({ state: 'accepted' });
+    expect(platform).toBe('ios');
+    expect(handler.mock.calls[0].slice(1)).toEqual(['session', command.message, { sendAtMs: 1, expectedClearBoundaryMs: null }]);
+    h.settings.remoteControlEnabled = false;
+    expect(await executeUmedaCommand(command)).toMatchObject({ state: 'retry', errorCode: 'REMOTE_DISABLED' });
+    expect(handler).toHaveBeenCalledTimes(1);
+    h.settings.revokedControllers = [];
+    expect(await executeUmedaCommand(command, () => false)).toMatchObject({ state: 'retry', errorCode: 'RECEIVER_CHANGED' });
+    expect(handler).toHaveBeenCalledTimes(1);
+    h.settings.remoteControlEnabled = true; h.settings.revokedControllers = [SRC];
+    expect(await executeUmedaCommand(command)).toMatchObject({ state: 'failed', errorCode: 'ACCESS_REVOKED' });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+  it('settles a reclaimed cloud input from the persisted receipt without enqueuing it again', async () => {
+    registry.register('maker:input:get-projection', async () => ({ inputDeliveryVersion: 1,
+      deliveryReceipts: [{ clientId: 'cloud-input', state: 'accepted' }] }));
+    const handler = vi.fn(async () => ({ pendingQueue: [] })); registry.register('maker:input:enqueue', handler);
+    expect(await executeUmedaCommand({ clientId: 'cloud-input', sourceDeviceId: SRC, targetDeviceId: 'desktop', sessionId: 'session',
+      sendAtMs: 1, expectedClearBoundaryMs: null, leaseId: 'lease', message: { clientId: 'cloud-input', durableDelivery: true } })).toEqual({ state: 'accepted' });
+    expect(handler).not.toHaveBeenCalled();
+  });
   // #7117:生产 runInvoke 必须把 SSH 的 POSIX 路径交给对应主机,而非 Windows fs。
   // 既有覆盖只有本机路径;最小失败输入为不存在于本机的路径 + remoteHostId。
   // tier:unit,SSH/数据库用内存依赖,dispatch 与目录守卫使用真实生产入口。

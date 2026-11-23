@@ -7,6 +7,135 @@ import type { LiziMcpSessionContext } from '../types.js';
 
 const TARGET_SESSION_ID = "11111111-1111-4111-8111-111111111111";
 
+// Story 8: merely discovering tools must never load business data. Through real
+// MCP wire, protect shared three-engine entry, revision validation and live guest
+// denial. Checkpoint tests do not cover business progress. Tier: unit.
+// Standalone file duration: 1.98s locally (2026-11-22).
+it('loads shared work management only on explicit calls and preserves atomic update inputs across engines', async () => {
+  for (const agentKind of ['codex', 'claude-code', 'pi'] as const) {
+    let restricted = false;
+    const workManagement = vi.fn(async () => ({ scope: 'host_local', items: [], status: 'local_saved' }));
+    const deps = { workManagement, workManagementAvailable: () => true, resolveSurface: async () => restricted ? 'restricted' as const : 'default' as const };
+    const server = createXdtHelperMcpServer(deps, { sessionId: 'execution', agentKind, workingDir: '/fixture' });
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'business-work-test', version: '1' });
+    await Promise.all([server.connect(st), client.connect(ct)]);
+    const call = (name: string, args: Record<string, unknown> = {}) => client.callTool({ name: 'call_tool', arguments: { name, args } }).then(parsePayload);
+    try {
+      const overview = parsePayload(await client.callTool({ name: 'list_tools', arguments: {} }));
+      expect(overview.categories).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'work' })]));
+      await client.callTool({ name: 'list_tools', arguments: { category: 'work' } });
+      expect(workManagement).not.toHaveBeenCalled();
+      expect(await call('list_work_items', { query: 'Reader' })).toMatchObject({ ok: true });
+      expect(workManagement).toHaveBeenLastCalledWith(expect.objectContaining({ sessionId: 'execution', agentKind }), { operation: 'list', query: 'Reader' });
+      expect(await call('get_work_item', { id: 'task-1' })).toMatchObject({ ok: true });
+      const update = { request_id: 'completion-1', summary: 'Delivered', changes: [
+        { id: 'task-1', expected_revision: 2, status: 'done' },
+        { id: 'goal-1', expected_revision: 1, progress: { percent: 30, basis: 'Milestone delivered' } },
+      ] };
+      expect(await call('update_work_progress', update)).toMatchObject({ ok: true });
+      expect(workManagement).toHaveBeenLastCalledWith(expect.objectContaining({ agentKind }), { operation: 'update', ...update });
+      expect(await call('update_work_progress', { ...update, changes: [{ id: 'task-1', status: 'done' }] })).toMatchObject({ errorCode: 'INVALID_ARGS' });
+      expect(await call('update_work_progress', { ...update, changes: [{ id: 'goal-1', expected_revision: 1, progress: { percent: 30 } }] })).toMatchObject({ errorCode: 'INVALID_ARGS' });
+      expect(await call('create_work_item', { request_id: 'new-task', kind: 'task', title: 'Read' })).toMatchObject({ ok: true });
+      expect(await call('get_work_progress_record', { request_id: 'completion-1' })).toMatchObject({ ok: true });
+      expect(await call('get_work_sync_status')).toMatchObject({ ok: true });
+      expect(workManagement).toHaveBeenLastCalledWith(expect.objectContaining({ agentKind }), { operation: 'sync_status' });
+      expect(await call('get_work_sync_conflict', { request_id: 'completion-1' })).toMatchObject({ ok: true });
+      expect(await call('resolve_work_sync_conflict', { request_id: 'completion-1', choice: 'remote' })).toMatchObject({ ok: true });
+      expect(workManagement).toHaveBeenLastCalledWith(expect.objectContaining({ agentKind }), { operation: 'sync_resolve', request_id: 'completion-1', choice: 'remote' });
+      expect(await call('resolve_work_sync_conflict', { request_id: 'completion-1', choice: 'invented' })).toMatchObject({ errorCode: 'INVALID_ARGS' });
+      restricted = true;
+      expect(await call('list_work_items')).toMatchObject({ errorCode: 'CAPABILITY_NOT_AVAILABLE' });
+      expect(workManagement).toHaveBeenCalledTimes(8);
+    } finally { await client.close(); await server.close(); }
+  }
+});
+
+// Unit through real MCP wire / Umeda work checkpoint contract. Existing resource
+// tests do not protect typed checkpoint validation, current-task binding or revision CAS.
+// Minimal invalid input: save without expected_revision, or an invented host_verified result.
+it('shares current-task work records across harnesses with revision and provenance validation', async () => {
+  const checkpoint = { objective: 'Continue work', acceptance: [], completed: [], decisions: [], next: ['verify'], blockers: [], verification: [], references: [] };
+  for (const agentKind of ['codex', 'claude-code', 'pi'] as const) {
+    let restricted = false;
+    const context: LiziMcpSessionContext = { sessionId: 'current', workingDir: '/fixture', agentKind };
+    const workRecords = vi.fn(async () => ({ revision: 1, status: 'local_saved' }));
+    const server = createXdtHelperMcpServer({ workRecords, workRecordsAvailable: () => true, resolveSurface: async () => restricted ? 'restricted' : 'default' }, { ...context, agentKind });
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'work-records-test', version: '1' });
+    await Promise.all([server.connect(st), client.connect(ct)]);
+    const call = (name: string, args: Record<string, unknown> = {}) => client.callTool({ name: 'call_tool', arguments: { name, args } }).then(parsePayload);
+    try {
+      const overview = parsePayload(await client.callTool({ name: 'list_tools', arguments: {} }));
+      expect(overview.categories).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'work' })]));
+      expect(await call('get_work_checkpoint')).toMatchObject({ ok: true });
+      expect(workRecords).toHaveBeenLastCalledWith(expect.objectContaining({ sessionId: 'current' }), { operation: 'get' });
+      expect(await call('save_work_checkpoint', { checkpoint })).toMatchObject({ ok: false, errorCode: 'INVALID_ARGS' });
+      expect(await call('save_work_checkpoint', { expected_revision: 0, checkpoint: { ...checkpoint, verification: [{ description: 'invented', outcome: 'host_verified' }] } })).toMatchObject({ ok: false, errorCode: 'INVALID_ARGS' });
+      expect(await call('save_work_checkpoint', { expected_revision: 0, checkpoint })).toMatchObject({ ok: true, revision: 1 });
+      expect(workRecords).toHaveBeenLastCalledWith(expect.objectContaining({ sessionId: 'current', agentKind }), { operation: 'save', expected_revision: 0, checkpoint });
+      expect(await call('get_work_checkpoint', { revision: 1 })).toMatchObject({ ok: true });
+      expect(workRecords).toHaveBeenLastCalledWith(expect.objectContaining({ sessionId: 'current' }), { operation: 'get', revision: 1 });
+      expect(await call('get_work_checkpoint', { session_id: 'other-task' })).toMatchObject({ ok: false, errorCode: 'INVALID_ARGS' });
+      restricted = true;
+      expect(await call('get_work_checkpoint')).toMatchObject({ ok: false, errorCode: 'CAPABILITY_NOT_AVAILABLE' });
+      expect(workRecords).toHaveBeenCalledTimes(3);
+    } finally { await client.close(); await server.close(); }
+  }
+});
+
+// Unit through real MCP wire. Umeda KOS resource contract: one discovery/validation
+// entry for three engines. Existing replica tests cannot verify tool visibility or
+// guest/context denial. Minimal input: stale/missing context or missing write hash.
+// Standalone Vitest duration: 3.45s locally (2026-11-22).
+it('exposes knowledge resource tools consistently to Codex, Claude Code and Pi', async () => {
+  for (const agentKind of ['codex', 'claude-code', 'pi'] as const) {
+    let restricted = false;
+    let context: LiziMcpSessionContext | undefined = { sessionId: 'current', workingDir: '/fixture', agentKind };
+    const knowledge = vi.fn(async () => ({ scope: 'local_mirror', vaults: [{ id: 'notes', name: 'Notes' }] }));
+    let enabled = false;
+    // Providers exist before loading the route; discovery resolves it when a task starts.
+    const deps = { knowledge, knowledgeAvailable: () => enabled, resolveSurface: async () => restricted ? 'restricted' as const : 'default' as const };
+    enabled = true;
+    const server = createXdtHelperMcpServer(deps,
+      { agentKind, workingDir: '/fixture', sessionId: 'current', getSessionContext: () => context });
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'knowledge-test', version: '1' });
+    await Promise.all([server.connect(st), client.connect(ct)]);
+    const call = (name: string, args: Record<string, unknown> = {}) => client.callTool({ name: 'call_tool', arguments: { name, args } }).then(parsePayload);
+    try {
+      const overview = parsePayload(await client.callTool({ name: 'list_tools', arguments: {} }));
+      expect(overview.categories).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'knowledge' })]));
+      const tools = parsePayload(await client.callTool({ name: 'list_tools', arguments: { category: 'knowledge' } }));
+      expect((tools.tools as unknown[])).toHaveLength(5);
+      expect(await call('list_knowledge_vaults')).toMatchObject({ ok: true, scope: 'local_mirror' });
+      expect(knowledge).toHaveBeenLastCalledWith(context, { operation: 'vaults' });
+      expect(await call('write_knowledge_document', { vault_id: 'notes', path: 'a.md', text: 'missing CAS' })).toMatchObject({ ok: false, errorCode: 'INVALID_ARGS' });
+      expect(knowledge).toHaveBeenCalledTimes(1);
+      expect(await call('write_knowledge_document', { vault_id: 'notes', path: 'a.md', text: 'create', expected_hash: null })).toMatchObject({ ok: true });
+      expect(knowledge).toHaveBeenLastCalledWith(context, { operation: 'write', vault_id: 'notes', path: 'a.md', text: 'create', expected_hash: null });
+      restricted = true;
+      expect(await call('list_knowledge_vaults')).toMatchObject({ ok: false, errorCode: 'CAPABILITY_NOT_AVAILABLE' });
+      restricted = false; context = undefined;
+      expect(await call('list_knowledge_vaults')).toMatchObject({ ok: false, errorCode: 'NO_SESSION_CONTEXT' });
+      expect(knowledge).toHaveBeenCalledTimes(2);
+    } finally { await client.close(); await server.close(); }
+    enabled = false;
+    const disabledServer = createXdtHelperMcpServer(deps, { agentKind, workingDir: '/fixture', sessionId: 'current' });
+    const disabledClient = new Client({ name: 'ordinary-cindy-test', version: '1' });
+    const [dct, dst] = InMemoryTransport.createLinkedPair();
+    await Promise.all([disabledServer.connect(dst), disabledClient.connect(dct)]);
+    try {
+      const overview = parsePayload(await disabledClient.callTool({ name: 'list_tools', arguments: {} }));
+      expect(overview.categories).not.toEqual(expect.arrayContaining([expect.objectContaining({ name: 'knowledge' })]));
+      const called = parsePayload(await disabledClient.callTool({ name: 'call_tool', arguments: { name: 'list_knowledge_vaults', args: {} } }));
+      expect(called).toMatchObject({ ok: false, errorCode: 'UNKNOWN_TOOL' });
+      expect(knowledge).toHaveBeenCalledTimes(2);
+    } finally { await disabledClient.close(); await disabledServer.close(); }
+  }
+});
+
 // Unit, real MCP wire: three harness contexts discover one shared capability.
 // A read must never dispatch an association write; shared guests cannot use it.
 it('exposes GitHub to all harnesses without implicit association', async () => {

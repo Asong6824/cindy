@@ -269,6 +269,7 @@ export interface MakerSessionAgentSwitchHandlerDeps {
   ): Promise<HandoffSourceMessage[]>;
   /** 伙伴工作记忆账本渲染段(botWorkingMemory);全量交接时带上,增量交接(停泊会话 resume)不带。 */
   readWorkingMemoryNote?(sessionId: string): Promise<string | null>;
+  readWorkCheckpointNote?(sessionId: string): Promise<string | null>;
   /**
    * Phase 2:查目标引擎的停泊原生会话(边界行派生)。缺省(测试最小 harness /
    * 显式关闭)= 恒无绑定,回落 v1 全量交接行为。fromAgentDeviceId 用于排除在
@@ -540,6 +541,7 @@ export async function relocateForFreshStart(
     | 'getSessionRow'
     | 'listMessagesForHandoff'
     | 'readWorkingMemoryNote'
+    | 'readWorkCheckpointNote'
     | 'applyAgentSwitchToDb'
     | 'setSessionProvider'
     | 'insertBoundaryMessage'
@@ -575,6 +577,7 @@ export async function relocateForFreshStart(
     toLabel: agentEngineLabel(dbKind),
     sessionId,
     workingMemory: (await deps.readWorkingMemoryNote?.(sessionId)) ?? null,
+    workCheckpoint: (await deps.readWorkCheckpointNote?.(sessionId)) ?? null,
   });
   const fromAgentDeviceId = params.from ? params.from.agentDeviceId : row.agentDeviceId ?? null;
   const fromProviderId = params.from ? params.from.providerId : row.providerId;
@@ -1040,7 +1043,8 @@ export async function performSessionAgentSwitch(
   };
   // 全量交接(全新原生会话)带伙伴工作记忆账本;增量交接的目标引擎仍持有离场前记忆,不带。
   const workingMemory = (await deps.readWorkingMemoryNote?.(sessionId)) ?? null;
-  const buildFullHandoff = () => buildHandoffText(fullSourceMessages, { ...handoffOptsBase, workingMemory });
+  const workCheckpoint = (await deps.readWorkCheckpointNote?.(sessionId)) ?? null;
+  const buildFullHandoff = () => buildHandoffText(fullSourceMessages, { ...handoffOptsBase, workingMemory, workCheckpoint });
   let handoff: string;
   if (parked) {
     const deltaMessages = await deps.listMessagesForHandoff(sessionId, {
@@ -1051,6 +1055,7 @@ export async function performSessionAgentSwitch(
       ...handoffOptsBase,
       mode: 'delta',
       workStateMessages: fullSourceMessages,
+      workCheckpoint,
     });
   } else {
     handoff = buildFullHandoff();

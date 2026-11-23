@@ -85,6 +85,24 @@ const validParams = {
   providerId: null,
 };
 
+// Unit: real switch entry; Umeda checkpoint contract. Existing parked/fallback tests
+// did not carry structured work facts. Minimal input: a saved checkpoint + parked target
+// whose resume fails. Both initial delta and persisted full fallback must retain the record.
+// Standalone file: 12.41s (10.93s collection, 0.074s execution; 2026-11-22).
+// Existing imports load the remote/control fixture graph; these cases add no I/O/waits/reset.
+it.each([false, true])('keeps the application checkpoint through switching and resume fallback (parked=%s)', async parked => {
+  const note = JSON.stringify({ objective: 'Continue the same work', next: ['preserve uncommitted changes'], provenance: 'agent_report_not_host_verified' });
+  const { deps } = makeDeps({
+    readWorkCheckpointNote: vi.fn(async () => note),
+    findParkedEngineSession: vi.fn(async () => parked ? { sdkSessionId: 'parked-target', watermarkCreatedAt: 0, watermarkRowid: 1 } : null),
+    ...(parked ? { bootstrapSwitchedSession: vi.fn().mockRejectedValueOnce(new Error('resume failed')).mockResolvedValue(undefined) } : {}),
+  });
+  await performSessionAgentSwitch(deps, validParams);
+  expect(deps.insertBoundaryMessage).toHaveBeenCalledWith('s1', expect.objectContaining({ handoff: expect.stringContaining(note) }));
+  expect(deps.setPendingHandoff).toHaveBeenLastCalledWith('s1', expect.stringContaining(note), undefined);
+  if (parked) expect(deps.applyResumeFallbackAtomically).toHaveBeenCalledWith('s1', 'boundary-client-1', expect.objectContaining({ handoff: expect.stringContaining(note), resumed: false }));
+});
+
 describe('same-harness native relocation', () => {
   // Quota balancing is now automatic only while native context survives. Exercise the
   // real switch entry: refusal after a failed resume must restore the original route.

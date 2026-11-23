@@ -303,6 +303,27 @@ describe('disabled Cindy Make outbox recovery', () => {
 });
 
 describe("durable mobile outbox ownership", () => {
+  // Cloud receipt is ownership, not a reason to call an asleep Mac. The old direct
+  // suite could not catch accidentally running projection before the relay hook.
+  it('keeps cloud-owned input durable without consulting the host and resumes through the same record', async () => {
+    const { store, deps, storage } = await setup();
+    await store.add(message());
+    let claimed = false;
+    const delivery = createDurableOutboxDelivery({ ...deps, relayDelivery: async (r, update) => {
+      if (!claimed) { await update({ relay: { baseUrl: 'https://relay.invalid', relayId: 'relay', sourceDeviceId: 'phone',
+        state: 'queued', input: { clientId: r.item.clientId, targetDeviceId: r.deviceId, sessionId: r.item.sessionId,
+          sendAtMs: 1, expectedClearBoundaryMs: null,
+          message: { clientId: r.item.clientId, durableDelivery: true, text: 'test', persistedContent: '{}',
+            chatMessage: { clientId: r.item.clientId }, createOpts: {} } } } }); return 'waiting'; }
+      await update({ state: 'host-owned', retrySafe: true }); return 'accepted';
+    } });
+    await delivery.run();
+    expect(deps.projection).not.toHaveBeenCalled(); expect(deps.enqueue).not.toHaveBeenCalled();
+    const restarted = createDurableOutbox(storage); await restarted.activate('alice');
+    expect(restarted.getSnapshot()[0].relay?.state).toBe('queued');
+    claimed = true; delivery.wake(); await delivery.run();
+    expect(store.getSnapshot()[0].state).toBe('host-owned');
+  });
   it.each([
     Object.assign(new Error('Message 不存在'), { code: 'NOT_FOUND' }),
     new Error('[NOT_FOUND] Message 不存在'),

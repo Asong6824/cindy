@@ -13,6 +13,11 @@
 
 ## 数据
 
+Umeda 的云端持久输入（2026-11-20）沿用同一个远控入口：领取时，中转从自己的设备目录
+补上来源设备名称和平台，Mac 将它交给既有 IPC 上下文盖章，因此手机已离线也仍保留
+界面与模型一致的设备来源。消息自带的同名字段不作为依据；这些信息只用于呈现，
+不承担无身份验证个人中转的鉴权。实现见 `device-link/umedaCommands.ts` 与 Worker `openRelay.ts`。
+
 - 沿用既有字段：`origin`（scheduler / session / orca）、`imSource`、`hookSource`、
   `sharedTaskAuthor`；新增 `sourceDevice`、`sourcePlugin`；群内显式发给主人的私聊消息使用 `sourceGroup` 保存群名与 ID，桌面和手机的 assistant 消息均显示此来源。
 - 本机应用的可见任务复用 `sourcePlugin` 的保留前缀 `local-app:<client-id>`，与既有

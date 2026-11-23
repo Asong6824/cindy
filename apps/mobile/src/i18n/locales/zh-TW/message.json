@@ -259,7 +259,9 @@
     "waitingForNetwork": "等網路恢復後傳送",
     "queued": "排隊中",
     "retryImage": "重新上傳這張圖片",
-    "waitingMessage": "等待傳送的訊息：{{text}}"
+    "waitingMessage": "等待傳送的訊息：{{text}}",
+    "cloudQueued": "已存到雲端，等待電腦接收",
+    "cloudQueuedMessage": "已存到雲端，等待電腦接收：{{text}}"
   },
   "systemCard": {
     "pluginModelRoute": {

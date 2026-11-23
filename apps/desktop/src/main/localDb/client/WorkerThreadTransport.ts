@@ -3,6 +3,9 @@ import { extractToolResultDiagnostics, sanitizeToolResultDiagnostics } from '@ci
 import { runPluginUsageTransaction } from '../worker/opHandlers/pluginUsageTx.js';
 import { runSessionImportTransaction } from '../worker/opHandlers/sessionImportTx.js';
 import { runTaskTagsTransaction } from '../worker/opHandlers/taskTagsTx.js';
+import { runWorkReplica } from '@cindy/maker-shared/work-replication';
+import { runWorkStore } from '@cindy/maker-shared/work-store';
+import { runWorkManagementTransaction } from '../worker/opHandlers/workManagementTx.js';
 import { recordMediaSpend } from '../worker/opHandlers/mediaSpendTx.js';
 import { recordPiUsage } from '../worker/opHandlers/piUsageTx.js';
 import { createAutoReviewIntentProjection } from '@cindy/maker-shared/auto-review-intent';
@@ -37,6 +40,9 @@ const CLOSE_SHARED_TASKS_FOR_SESSION_SQL = ${JSON.stringify(CLOSE_SHARED_TASKS_F
 const runPluginUsageTransaction = ${runPluginUsageTransaction.toString()};
 const runSessionImportTransaction = ${runSessionImportTransaction.toString()};
 const runTaskTagsTransaction = ${runTaskTagsTransaction.toString()};
+const runWorkStore = ${runWorkStore.toString()};
+const runWorkReplica = ${runWorkReplica.toString()};
+const runWorkManagementTransaction = ${runWorkManagementTransaction.toString()};
 const recordMediaSpend = ${recordMediaSpend.toString()};
 const recordPiUsage = ${recordPiUsage.toString()};
 const fastModeToStorage = ${fastModeToStorage.toString()};
@@ -436,6 +442,8 @@ function dispatchTransaction(readyDb, payload) {
   const request = asRecord(payload, 'tx args');
   const name = expectString(request.name, 'name');
   switch (name) {
+    case 'umedaWork.execute': return runWorkManagementTransaction(readyDb, request.args, runWorkStore, runWorkReplica);
+    case 'umedaWork.replica': return runWorkReplica(readyDb, request.args, runWorkStore);
     case 'usage.recordMediaSpend':
       return recordMediaSpend(readyDb, request.args);
     case 'usage.recordPiUsage':

@@ -259,7 +259,9 @@
     "waitingForNetwork": "等网络恢复后发送",
     "queued": "排队中",
     "retryImage": "重新上传这张图片",
-    "waitingMessage": "等待发送的消息：{{text}}"
+    "waitingMessage": "等待发送的消息：{{text}}",
+    "cloudQueued": "已存到云端，等待电脑接收",
+    "cloudQueuedMessage": "已存到云端，等待电脑接收：{{text}}"
   },
   "systemCard": {
     "pluginModelRoute": {

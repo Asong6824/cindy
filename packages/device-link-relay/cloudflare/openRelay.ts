@@ -1,3 +1,4 @@
+import { WORK_CHANGE_NOTICE, WORK_SYNC_FEATURE } from '@cindy/maker-shared/work-replication';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { PROTOCOL_VERSION } from '@cindy/device-link-protocol';
@@ -8,6 +9,10 @@ import { RELAY_VERSION } from '../src/version';
 import { DurableMedia } from './media';
 import { DurableSocket } from './socket';
 import { readJson } from './requestJson';
+import { DurableCommands } from './commands';
+import { CloudVault, type VaultBucket } from './vault';
+import { VAULT_SYNC_FEATURE, VAULT_INDEX_FEATURE, VAULT_BATCH_FEATURE, VAULT_NOTIFY_FEATURE, VAULT_LIBRARY_FEATURE, VAULT_CHANGE_NOTICE, VAULT_SYNC_PATH } from '@cindy/device-link';
+import { UMEDA_COMMAND_FEATURE, UMEDA_COMMAND_NOTICE, UMEDA_COMMAND_PATH, type UmedaCommandSettlement } from '@cindy/device-link';
 import type { EdgeSocket, ObjectContext } from './runtime';
 
 const P = '/api/device-link';
@@ -28,11 +33,15 @@ export class OpenRelay {
   private hub!: Hub;
   private media!: DurableMedia;
   private readonly ready: Promise<void>;
+  private readonly commands: DurableCommands;
+  private readonly vault?: CloudVault;
   private revision = 1;
   private persistedRevision = 0;
   private writes: Promise<void> = Promise.resolve();
 
-  constructor(private readonly ctx: ObjectContext) {
+  constructor(private readonly ctx: ObjectContext, bucket?: VaultBucket, private readonly workSync = false) {
+    this.commands = new DurableCommands(ctx.storage);
+    if (bucket) this.vault = new CloudVault(ctx.storage, bucket, (vaultId, revision) => this.notifyVault(vaultId, revision));
     this.ready = ctx.blockConcurrencyWhile(async () => {
       const stored = await ctx.storage.get<OpenState>(KEY);
       // Preserve names and device IDs when upgrading an already deployed relay.
@@ -92,16 +101,60 @@ export class OpenRelay {
 
   private async handle(request: Request): Promise<Response> {
     const url = new URL(request.url), route = url.pathname, method = request.method;
-    const version = `${RELAY_VERSION}-umeda.2`;
+    if (route === '/internal/work-changed' && method === 'POST' && this.workSync) {
+      for (const socket of this.ctx.getWebSockets()) {
+        const connection = socket.deserializeAttachment()?.connection;
+        if (socket.readyState !== 1 || !connection?.ready) continue;
+        try { socket.send(JSON.stringify({ v: PROTOCOL_VERSION, kind: 'push', src: connection.deviceId, dst: connection.deviceId, payload: { channel: WORK_CHANGE_NOTICE, payload: null } })); } catch { /* Cursor repair handles a missed hint. */ }
+      }
+      return new Response(null, { status: 204 });
+    }
+    const version = `${RELAY_VERSION}-umeda.8`;
     if (method === 'GET' && ['/', '/health'].includes(route)) return json({
       service: 'umeda-relay', version, initialized: true, protocolVersion: PROTOCOL_VERSION, authMode: 'none',
     });
     if (route.startsWith(`${P}/relay/blob/`)) return this.media.handle(request);
     if (method === 'GET' && route === `${P}/relay/info`) return json({
       relayId: this.state.relayId, name: this.state.name, protocolVersion: PROTOCOL_VERSION,
-      relayVersion: version, authMode: 'none', features: [],
+      relayVersion: version, authMode: 'none', features: [UMEDA_COMMAND_FEATURE, ...(this.workSync ? [WORK_SYNC_FEATURE] : []), ...(this.vault ? [VAULT_SYNC_FEATURE, VAULT_INDEX_FEATURE, VAULT_BATCH_FEATURE, VAULT_NOTIFY_FEATURE, VAULT_LIBRARY_FEATURE] : [])],
     });
+    if (route === VAULT_SYNC_PATH || route.startsWith(`${VAULT_SYNC_PATH}/`)) {
+      if (!this.vault) throw new RelayError('NOT_SUPPORTED', 'vault storage not configured');
+      return this.vault.handle(request);
+    }
     const selfId = request.headers.get('x-umeda-device-id') ?? url.searchParams.get('deviceId') ?? '';
+    if (route === UMEDA_COMMAND_PATH || route.startsWith(`${UMEDA_COMMAND_PATH}/`)) {
+      if (!DEVICE_ID_PATTERN.test(selfId) || !this.devices.has(selfId)) throw new RelayError('BAD_REQUEST', 'known device routing label required');
+      if (route === UMEDA_COMMAND_PATH && method === 'POST') {
+        const input = await readJson(request);
+        if (typeof input.targetDeviceId !== 'string' || !this.devices.has(input.targetDeviceId)) throw new RelayError('NOT_FOUND', 'target device not found');
+        const receipt = await this.commands.submit(selfId, input);
+        this.notifyCommands(receipt.targetDeviceId);
+        return json({ receipt }, 202);
+      }
+      if (route === `${UMEDA_COMMAND_PATH}/capabilities` && method === 'GET') {
+        return json({ supported: await this.commands.supported(url.searchParams.get('targetDeviceId') ?? '') });
+      }
+      if (route === `${UMEDA_COMMAND_PATH}/claim` && method === 'POST') {
+        const command = await this.commands.claim(selfId);
+        const source = command && this.devices.get(command.sourceDeviceId);
+        return json({ command: command ? { ...command, sourcePlatform: source?.platform ?? null,
+          sourceName: source?.customName ?? source?.reportedName ?? null } : null,
+          ...(!command && await this.commands.hasPending(selfId) ? { pending: true } : {}) });
+      }
+      if (route === `${UMEDA_COMMAND_PATH}/settle` && method === 'POST') {
+        const receipt = await this.commands.settle(selfId, await readJson(request) as unknown as UmedaCommandSettlement);
+        this.notifyCommands(receipt.sourceDeviceId);
+        return json({ receipt });
+      }
+      const clientId = decodeURIComponent(route.slice(UMEDA_COMMAND_PATH.length + 1));
+      if (clientId && (method === 'GET' || method === 'DELETE')) {
+        const receipt = method === 'DELETE' ? await this.commands.cancel(selfId, clientId) : await this.commands.get(selfId, clientId);
+        if (!receipt) throw new RelayError('NOT_FOUND', 'durable input not found');
+        return json({ receipt });
+      }
+      throw new RelayError('NOT_FOUND', 'durable input route not found');
+    }
     if (method === 'GET' && route === `${P}/ws`) {
       if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('WebSocket upgrade required', { status: 426 });
       if (!DEVICE_ID_PATTERN.test(selfId)) throw new RelayError('BAD_REQUEST', 'deviceId routing label required');
@@ -127,6 +180,7 @@ export class OpenRelay {
       const id = decodeURIComponent(match[1]), device = this.devices.get(id);
       if (!device) throw new RelayError('NOT_FOUND', 'device not found');
       if (method === 'DELETE') {
+        await this.commands.removeDevice(id);
         this.devices.delete(id); this.revision++; this.hub.disconnectDevice(device, 4410, 'device removed');
         return json({ deleted: true });
       }
@@ -157,7 +211,24 @@ export class OpenRelay {
   }
   async alarm(): Promise<void> {
     await this.ready;
-    this.hub.closeIdle(); await this.media.sweep(); await this.flush(); await this.scheduleAlarm();
+    this.hub.closeIdle(); await this.media.sweep(); await this.commands.sweep(); await this.flush(); await this.scheduleAlarm();
+  }
+  private notifyVault(vaultId: string, revision: number) {
+    for (const socket of this.ctx.getWebSockets()) {
+      const connection = socket.deserializeAttachment()?.connection;
+      if (socket.readyState !== 1 || !connection?.ready) continue;
+      try { socket.send(JSON.stringify({ v: PROTOCOL_VERSION, kind: 'push', src: connection.deviceId, dst: connection.deviceId,
+        payload: { channel: VAULT_CHANGE_NOTICE, payload: { vaultId, revision } } })); } catch { /* Persistent cursors repair a missed hint. */ }
+    }
+  }
+  private notifyCommands(deviceId: string) {
+    // Optional, payload-free hint on the existing push channel. Reconnect/periodic reads repair loss.
+    for (const socket of this.ctx.getWebSockets()) {
+      const connection = socket.deserializeAttachment()?.connection;
+      if (socket.readyState !== 1 || !connection?.ready || connection.deviceId !== deviceId) continue;
+      try { socket.send(JSON.stringify({ v: PROTOCOL_VERSION, kind: 'push', src: deviceId, dst: deviceId,
+        payload: { channel: UMEDA_COMMAND_NOTICE, payload: null } })); } catch { /* durable inbox remains authoritative */ }
+    }
   }
   private async scheduleAlarm(): Promise<void> {
     const next = Math.max(Date.now() + 1_000, Math.min(this.hub.nextDeadline() ?? Infinity, Date.now() + 3_600_000));

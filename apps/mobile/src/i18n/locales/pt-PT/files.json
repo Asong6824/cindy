@@ -143,5 +143,14 @@
   },
   "gallery": {
     "cacheMiss": "Este conteúdo multimédia ainda não está em cache no telemóvel. Abra-o novamente quando o computador estiver ligado"
+  },
+  "vault": {
+    "title": "Biblioteca",
+    "cloud": "Ficheiros na nuvem",
+    "offline": "Offline · conteúdo guardado",
+    "refresh": "Atualizar",
+    "openFile": "Transferir e abrir",
+    "readError": "Este ficheiro está indisponível. Ligue-se para o transferir.",
+    "empty": "Ainda não há ficheiros sincronizados."
   }
 }

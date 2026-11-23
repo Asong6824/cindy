@@ -16,7 +16,8 @@ export async function startCloudflareRelay(init?: RelayInitialization, proof?: s
       outfile: scriptPath, bundle: true, platform: 'node', format: 'esm', target: 'es2022', external: ['node:*', 'cloudflare:*'], logLevel: 'silent' });
     runtime = new Miniflare(convertV4MiniflareOptions({ name: 'umeda', rootPath: dir, modules: true, scriptPath, host: '127.0.0.1', port: 0, compatibilityDate: '2026-11-14',
       compatibilityFlags: ['nodejs_compat'], bindings: open ? { UMEDA_AUTH_MODE: 'none' } : { UMEDA_OWNER_PUBLIC_KEY: init!.ownerPublicKey },
-      durableObjects: { UMEDA_RELAY: { className: 'UmedaRelay', useSQLite: true } },
+      durableObjects: { UMEDA_RELAY: { className: 'UmedaRelay', useSQLite: true }, UMEDA_WORK: { className: 'UmedaWork', useSQLite: true } },
+      ...(open ? { r2Buckets: ['UMEDA_VAULT'] } : {}),
     }));
     const localUrl = (await runtime.ready).origin;
     const response = open ? await fetch(`${localUrl}/health`) : await fetch(`${localUrl}/api/device-link/relay/initialize`, { method: 'POST',

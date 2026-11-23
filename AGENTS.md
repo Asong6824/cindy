@@ -43,6 +43,10 @@ Cindy 面向大众用户，让人以简单高效的方式用 AI 完成工作。�
 
 - 首次接触本仓、需要定位功能代码位置或判断新代码归属模块时，先读仓库地图
   `docs/dev-rules/repo-map.md`。
+- 设计或修改个人 Umeda 的资料库、KOS、多端数据服务、React／原生分工或技术框架前，先读
+  [Umeda 产品方向](docs/product-rules/umeda-product-direction.md)与
+  [客户端架构](docs/dev-rules/umeda-client-architecture.md)；现状、优化顺序与验收见
+  [优化路线图](docs/umeda-optimization-roadmap.md)。这些裁决只作用于个人分支，不改写普通 Cindy 契约。
 - 只为检查界面而需要启动 Desktop 或 Mobile 模拟器、且不需要真实账号时，用 `--mock`
   免登录模拟数据启动；新增或修改模拟任务、`--mock` 行为前先读 `docs/dev-rules/ui-mock-data.md`。
 - 首次安装、修复依赖或准备新 worktree 时，必须先读

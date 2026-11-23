@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { RelayError } from '../src/errors';
 
-export async function readJson(request: Request): Promise<Record<string, unknown>> {
+export async function readJson(request: Request, maxBytes = 64 * 1024): Promise<Record<string, unknown>> {
   const reader = request.body?.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -10,7 +10,7 @@ export async function readJson(request: Request): Promise<Record<string, unknown
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > 64 * 1024) { await reader.cancel(); throw new RelayError('PAYLOAD_TOO_LARGE', 'request body is too large'); }
+      if (size > maxBytes) { await reader.cancel(); throw new RelayError('PAYLOAD_TOO_LARGE', 'request body is too large'); }
       chunks.push(value);
     }
   } finally { reader.releaseLock(); }

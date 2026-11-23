@@ -1,8 +1,11 @@
+import { runWorkStore } from '@cindy/maker-shared/work-store';
+import { runWorkReplica } from '@cindy/maker-shared/work-replication';
 import { fastModeFromStorage, fastModeToStorage } from '@cindy/maker-shared';
 import { extractToolResultDiagnostics } from '@cindy/maker-shared/tool-result-compaction';
 import { runPluginUsageTransaction } from './pluginUsageTx.js';
 import { runSessionImportTransaction } from './sessionImportTx.js';
 import { runTaskTagsTransaction } from './taskTagsTx.js';
+import { runWorkManagementTransaction } from './workManagementTx.js';
 import { recordMediaSpend } from './mediaSpendTx.js';
 import { recordPiUsage } from './piUsageTx.js';
 import { batchAutoReviewProjection, readAutoReviewProjectionTransaction } from '../../autoReviewProjection.js';
@@ -72,6 +75,9 @@ function dispatchTransaction(db: Database.Database, args: unknown): unknown {
   const txArgs = payload.args;
 
   switch (name) {
+    case 'umedaWork.replica': return runWorkReplica(db, txArgs as import('@cindy/maker-shared/work-replication').WorkReplicaRequest, runWorkStore);
+    case 'umedaWork.execute':
+      return runWorkManagementTransaction(db, txArgs as import('@cindy/maker-shared/work-management').WorkManagementTransaction);
     case 'usage.recordPiUsage':
       return recordPiUsage(db, txArgs as import('./piUsageTx.js').PiUsageWrite[]);
     case 'chatCache.execute':

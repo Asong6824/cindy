@@ -27,6 +27,7 @@ import { readChannelToolScope } from '../im/shared/channelToolScope.js';
 import { FORWARDED_REQUEST_RECEIPT, verifiedOwnerRequestText, type AgentRequestReceipt } from '../../shared/forwardedRequest.js';
 import { configureBotTodoDispatch, settleBotTodoForSession } from './botTodoAccess.js';
 import { createBotTodoDispatch } from './botTodoDispatch.js';
+import { readSessionWorkCheckpointHandoff } from '../work-records/host.js';
 import {
   scheduleBotRemoteResourceChangedForDelegation,
   scheduleBotRemoteResourceChangedForFollowedSession,
@@ -11734,6 +11735,7 @@ export function registerMakerIpc(maker: Maker, options: RegisterMakerIpcOptions)
     closeSession: (sessionId) => maker.closeSession(sessionId, 'agent-switch'),
     listMessagesForHandoff: (sessionId, after) =>
       listMessagesForAgentHandoff(sessionId, 400, after),
+    readWorkCheckpointNote: readSessionWorkCheckpointHandoff,
     findParkedEngineSession: (sessionId, targetDbKind, fromAgentDeviceId) =>
       findParkedEngineSession(sessionId, targetDbKind, fromAgentDeviceId),
     applyAgentSwitchToDb: async (sessionId, patch) => {

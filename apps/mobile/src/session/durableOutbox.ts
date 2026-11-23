@@ -3,6 +3,7 @@ import type { NewSessionDraft } from "./newSession";
 import type { ComposerDocument } from './composerDocument';
 import type { MobileOutboxItem } from "./sessionOutbox";
 import type { QueuedRemoteMessage, RemoteSerializedAttachment } from "./types";
+import { isUmedaCommandInput } from '@cindy/device-link';
 
 export interface DurableUpload {
   slot: number;
@@ -48,6 +49,15 @@ export interface DurableOutboxRecord {
   state: "queued" | "sending" | "confirming" | "host-owned" | "failed";
   uploads: DurableUpload[];
   prepared?: QueuedRemoteMessage;
+  /** Pinned before the first cloud write; uncertainty never falls back to a fresh direct send. */
+  relay?: {
+    baseUrl: string;
+    relayId: string;
+    sourceDeviceId: string;
+    state: 'submitting' | 'queued' | 'accepted';
+    terminal?: true;
+    input: import('@cindy/device-link').UmedaCommandInput;
+  };
   /** Persisted before enqueue; absent on older records means unknown, not unsent. */
   enqueueStarted?: boolean;
   draftHandoff?: { before: ComposerDocument; after: ComposerDocument };
@@ -105,8 +115,9 @@ export function isDurableCreationDraft(record: DurableOutboxRecord): boolean {
  * 已移交被控端的记录:持久投递已收下(或已落定)。会话 FIFO 只派发第一条未移交的记录,
  * 移交后的记录只做对账,不再挡后面的消息。
  */
-export function isDurableOutboxHandedOff(record: Pick<DurableOutboxRecord, 'state' | 'retrySafe' | 'historyConfirmed' | 'cleanupOutcome'>): boolean {
-  return (record.state === "host-owned" && (record.retrySafe === true || record.historyConfirmed === true))
+export function isDurableOutboxHandedOff(record: Pick<DurableOutboxRecord, 'state' | 'retrySafe' | 'historyConfirmed' | 'cleanupOutcome' | 'relay'>): boolean {
+  return record.relay?.state === 'queued'
+    || (record.state === "host-owned" && (record.retrySafe === true || record.historyConfirmed === true))
     || record.cleanupOutcome !== undefined;
 }
 
@@ -114,8 +125,8 @@ export function isDurableOutboxHandedOff(record: Pick<DurableOutboxRecord, 'stat
  * Legacy records without that proof must also lack all previous-send evidence.
  */
 export function isDurableOutboxUnsent(record: DurableOutboxRecord): boolean {
-  return record.enqueueStarted === false || (record.enqueueStarted === undefined
-    && !record.prepared && record.sendAtMs === undefined);
+  return !record.relay && (record.enqueueStarted === false || (record.enqueueStarted === undefined
+    && !record.prepared && record.sendAtMs === undefined));
 }
 
 export const DURABLE_OUTBOX_PREFIX = "cindy.mobile.outbox.v1.";
@@ -308,6 +319,11 @@ function isLoadableOutboxRecord(
       || (typeof row.storageSessionId === 'string' && row.storageSessionId.length > 0))
     && keyFor(row) === key
     && Array.isArray(row.uploads)
+    && (row.relay === undefined || (row.relay !== null && typeof row.relay.baseUrl === 'string'
+      && typeof row.relay.relayId === 'string' && typeof row.relay.sourceDeviceId === 'string'
+      && ['submitting', 'queued', 'accepted'].includes(row.relay.state)
+      && isUmedaCommandInput(row.relay.input) && row.relay.input.clientId === row.item.clientId
+      && row.relay.input.sessionId === row.item.sessionId && row.relay.input.targetDeviceId === row.deviceId))
     && (row.historyConfirmed === undefined || typeof row.historyConfirmed === 'boolean')
     && (row.cleanupOutcome === undefined
       || row.cleanupOutcome === 'accepted'

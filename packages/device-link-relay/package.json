@@ -28,6 +28,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@cindy/device-link": "workspace:*",
+    "@cindy/maker-shared": "workspace:*",
     "@cindy/device-link-protocol": "workspace:*",
     "ws": "^8.18.3"
   },

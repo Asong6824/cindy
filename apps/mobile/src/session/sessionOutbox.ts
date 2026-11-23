@@ -132,6 +132,8 @@ export type MobileOutboxPhase =
   | 'failed';
 
 export interface MobileOutboxItem {
+  cloudQueued?: boolean;
+  cloudTerminal?: boolean;
   /** 预生成的消息 clientId,贯穿 outbox → queued → enqueue(被控端幂等去重)。 */
   clientId: string;
   /**
@@ -196,6 +198,8 @@ export interface MobileOutboxThumb {
 
 /** InlineQueueSection 渲染 outbox 行所需的最小视图数据。 */
 export interface MobileOutboxDisplayItem {
+  cloudQueued?: boolean;
+  cloudTerminal?: boolean;
   clientId: string;
   text: string;
   quotesEncoded: boolean;
@@ -512,6 +516,8 @@ export function outboxDisplayItem(item: MobileOutboxItem): MobileOutboxDisplayIt
     fileCount,
     fileNames,
     failed: item.phase === 'failed',
+    ...(item.cloudQueued ? { cloudQueued: true } : {}),
+    ...(item.cloudTerminal ? { cloudTerminal: true } : {}),
     ...(item.phase === 'dispatching' ? { dispatching: true } : {}),
     errorText: item.phase !== 'failed'
       ? null

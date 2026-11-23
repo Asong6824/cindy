@@ -259,7 +259,9 @@
     "waitingForNetwork": "Sends when you’re back online",
     "queued": "Queued",
     "retryImage": "Upload this image again",
-    "waitingMessage": "Waiting to send: {{text}}"
+    "waitingMessage": "Waiting to send: {{text}}",
+    "cloudQueued": "Saved to cloud; waiting for computer",
+    "cloudQueuedMessage": "Saved to cloud; waiting for computer: {{text}}"
   },
   "systemCard": {
     "pluginModelRoute": {

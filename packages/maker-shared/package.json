@@ -7,6 +7,9 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
+    "./work-replication": "./src/workReplication.ts",
+    "./work-store": "./src/workStore.ts",
+    "./work-management": "./src/workManagement.ts",
     ".": "./src/index.ts",
     "./model-route": "./src/modelRoute.ts",
     "./agent-capabilities": "./src/agentCapabilities.ts",
@@ -104,6 +107,7 @@
     "./usage-format": "./src/usageFormat.ts",
     "./usage-cost-details": "./src/usageCostDetails.ts",
     "./work-activity-projection": "./src/workActivityProjection.ts",
+    "./work-checkpoint": "./src/workCheckpoint.ts",
     "./worktree-paths": "./src/worktreePaths.ts",
     "./codex-usage-buckets": "./src/codexUsageBuckets.ts",
     "./subscription-usage": "./src/subscriptionUsage.ts",
@@ -123,7 +127,8 @@
     "./remote-desktop-scripts": "./src/remote-desktop/viewerScripts.ts",
     "./teammate-todo": "./src/teammateTodo.ts",
     "./teammate-status": "./src/teammateStatus.ts",
-    "./host-channel-contract": "./src/hostChannelContract.ts"
+    "./host-channel-contract": "./src/hostChannelContract.ts",
+    "./work-sync": "./src/workSync.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

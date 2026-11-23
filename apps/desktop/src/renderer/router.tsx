@@ -80,6 +80,11 @@ export const router = createHashRouter([
                 children: [
                   { index: true, element: <MainEntryRedirect /> },
                   {
+                    path: 'work',
+                    lazy: () => import('@/features/work-management/WorkPage').then(({ WorkPage }) => ({ Component: WorkPage })),
+                    HydrateFallback: EmptyRouteFallback,
+                  },
+                  {
                     path: 'cc-agent',
                     element: <CCAgentFeatureLayout />,
                     children: [

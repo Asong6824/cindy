@@ -80,6 +80,8 @@ export interface MobilePendingSendSource {
 export type MobilePendingSendActions = QueueRowPresentation['actions'];
 
 export interface MobilePendingSendItem {
+  cloudQueued?: boolean;
+  cloudTerminal?: boolean;
   type: 'pending_send';
   /** 与回流后的正式消息项同 key —— 同一个列表位置,内容原地替换。 */
   key: string;
@@ -464,7 +466,9 @@ export function buildPendingSendItems(input: BuildPendingSendItemsInput): Mobile
       clientId: item.clientId,
       text: item.quotesEncoded ? stripChatQuoteMarkerLines(item.text) : item.text,
       sentInlineTokens: buildPendingSentInlineTokens(item),
-      phase: item.failed ? 'failed' : waitingFor ? 'waiting' : uploadsPending ? 'uploading' : 'sending',
+      phase: item.failed ? 'failed' : item.cloudQueued || waitingFor ? 'waiting' : uploadsPending ? 'uploading' : 'sending',
+      ...(item.cloudQueued ? { cloudQueued: true } : {}),
+      ...(item.cloudTerminal ? { cloudTerminal: true } : {}),
       ...(waitingFor ? { waitingFor } : {}),
       ...(item.sentAt !== undefined ? { sentAt: item.sentAt } : {}),
       queueIndex: null,

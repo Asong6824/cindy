@@ -51,6 +51,8 @@ export type XdtHelperToolCategory =
   | 'app_update'
   | 'bots'
   | 'github'
+  | 'knowledge'
+  | 'work'
   | 'settings';
 
 export type XdtHelperToolContentBlock =

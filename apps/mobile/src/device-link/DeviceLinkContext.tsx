@@ -1,3 +1,7 @@
+import { WORK_CHANGE_NOTICE } from '@cindy/maker-shared/work-replication';
+import { wakeMobileWork } from '@/work-management/runtime';
+import { createVaultNotifier } from '@/vault/events';
+import { VAULT_CHANGE_NOTICE } from '@cindy/device-link';
 import Constants from 'expo-constants';
 import { DirectLinkTransport } from './DirectLinkTransport';
 import { tryMobilePeerInvoke, resetMobilePeer } from './peerFileRegistry';
@@ -1529,7 +1533,11 @@ export function DeviceLinkProvider({ children }: { children: ReactNode }) {
         }
       };
     };
-    const offFrame = client.onFrame((env) => routeFrameMeasured(env, {
+    const vaultHint = createVaultNotifier(() => clientRef.current === client);
+    const offFrame = client.onFrame((env) => {
+      if (env.kind === 'push' && (env.payload as PushPayload)?.channel === WORK_CHANGE_NOTICE) wakeMobileWork();
+      if (env.kind === 'push' && (env.payload as PushPayload)?.channel === VAULT_CHANGE_NOTICE) vaultHint((env.payload as PushPayload).payload);
+      routeFrameMeasured(env, {
       currentDataOwnerId: currentDataOwnerIdRef.current,
       onAccessRevoked: (deviceId) => {
         clearOnePresenceWipeTimer(presenceWipeTimersRef.current, deviceId);
@@ -1607,7 +1615,8 @@ export function DeviceLinkProvider({ children }: { children: ReactNode }) {
       onAgentsChanged: (deviceId) => {
         for (const listener of remoteAgentRosterListeners) listener(deviceId);
       },
-    }));
+    });
+    });
     // 与 transport-timeout link-close 同族的链路死锁自救(互为兜底):对端还在按
     // 可靠流给本机发帧,而本机侧 link 未就绪——典型成因是 link-accept 在弱网丢失
     // 后互等(发送端等 ACK、接收端等 link)。transport-timeout 是对端主动通知

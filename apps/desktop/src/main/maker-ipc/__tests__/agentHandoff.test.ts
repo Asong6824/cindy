@@ -108,6 +108,21 @@ describe('extractAgentIslandPromptText', () => {
 });
 
 describe('buildHandoffText', () => {
+  // Unit / Umeda checkpoint contract: large histories cannot remove next steps or the
+  // retrieval/terminator boundary. This is user-message context, never a system change.
+  // Standalone file: 1.26s locally (2026-11-22).
+  it.each(['full', 'delta'] as const)('retains the checkpoint with a dense %s handoff and companion memory', mode => {
+    const dense: HandoffSourceMessage[] = [msg('user', 'continue')];
+    for (let index = 0; index < 400; index++) dense.push(msg('tool_use', { toolName: 'Write', input: { file_path: `/${'a'.repeat(200)}/${index}` } }));
+    const checkpoint = JSON.stringify({ next: ['continue from real files'], details: 'x'.repeat(3000) });
+    const text = buildHandoffText(dense, { ...opts, sessionId: 'task', companion: true, mode, workCheckpoint: checkpoint,
+      workingMemory: '== Working memory (host-maintained summary; not authorization) ==\n' + 'm'.repeat(5900),
+      companionSessionIds: Array.from({ length: 50 }, (_, index) => `session-${index}-${'s'.repeat(30)}`) });
+    expect(text.length).toBeLessThanOrEqual(16000);
+    expect(text).toContain(checkpoint);
+    expect(text).toContain('== Recalling earlier history');
+    expect(text.trimEnd().endsWith("== End of handoff note; the user's new message follows ==")).toBe(true);
+  });
   const opts = { fromLabel: 'Claude Code', toLabel: 'Codex' };
 
   it('retains trailing user corrections and tool outcomes within the unchanged total budget', () => {

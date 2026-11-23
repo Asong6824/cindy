@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 3,
+  "id": "kos-workbench",
+  "name": "KOS 工作台",
+  "description": "管理目标、行动、知识与阅读，使用自己的资料库在多端保持连续。",
+  "version": "0.4.0",
+  "minCindyVersion": "0.1.125",
+  "kind": "chip",
+  "launch": "resident",
+  "library": true,
+  "entry": "main.js",
+  "mainView": { "title": "KOS", "icon": "chart-column", "html": "index.html" },
+  "network": { "hosts": ["example.workers.dev"] },
+  "showTaskPreferences": false
+}

@@ -1,7 +1,9 @@
+import { VaultClient, VAULT_CHANGE_NOTICE, parseVaultChange } from '../../packages/device-link/src/vaultSync';
 import { expect, it, vi } from "vitest";
 import { nodeRelayAuthCrypto } from "../../packages/device-link/src/nodeRelayCrypto";
 import { RelayFrameAuthenticator } from "../../packages/device-link/src/selfHostedRelayAuth";
 import { PLUGIN_SYNC_CHANNEL } from "../../packages/device-link/src/pluginSyncProtocol";
+import { UMEDA_COMMAND_NOTICE, UMEDA_COMMAND_PATH } from '../../packages/device-link/src/umedaCommands';
 import {
   createClient,
   createHost,
@@ -141,6 +143,58 @@ it("interoperates with an explicitly provisioned isolated relay and automaticall
     ]);
     expect(controller.sockets.length).toBeGreaterThan(1);
     expect(rejected).toEqual([]);
+    if (scheme === 'None') {
+      // Real workerd + production WS client: offline cloud ownership, duplicate HTTP
+      // retries, and the optional notice must work without either phone or host staying connected.
+      const base = url.replace(/^ws/, 'http').replace(/\/api\/device-link\/ws$/, '');
+      const phoneId = controller.client.getSelfDeviceId()!;
+      const call = async (deviceId: string, path: string, body?: unknown) => {
+        const response = await fetch(`${base}${path}`, { method: body === undefined ? 'GET' : 'POST',
+          headers: { 'x-umeda-device-id': deviceId, 'content-type': 'application/json' },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+        expect(response.ok).toBe(true); return await response.json() as any;
+      };
+      // Integration: actual workerd → production WS clients. Vault hints must reach both
+      // native roles without opening/resetting a peer link or carrying document bytes.
+      let hostRevision = 0, phoneRevision = 0;
+      const hint = (env: any) => env.kind === 'push' && env.payload?.channel === VAULT_CHANGE_NOTICE ? parseVaultChange(env.payload.payload) : null;
+      const offHostVault = host.client.onFrame(env => { const value = hint(env); if (value?.vaultId === 'interop-vault') hostRevision = value.revision; });
+      const offPhoneVault = controller.client.onFrame(env => { const value = hint(env); if (value?.vaultId === 'interop-vault') phoneRevision = value.revision; });
+      try {
+        const vault = new VaultClient(base); await vault.register({ id: 'interop-vault', name: 'Interop' });
+        const waiting = fetch(`${base}/api/vaults/interop-vault/watch?after=0`).then(response => response.json());
+        const file = await vault.write('interop-vault', 'note.md', new TextEncoder().encode('# synthetic document'), 0);
+        expect(await waiting).toEqual({ revision: file.revision, changed: true });
+        await vi.waitFor(() => { expect(hostRevision).toBe(file.revision); expect(phoneRevision).toBe(file.revision); }, { timeout: 5000 });
+        expect(host.client.getStatus()).toBe('online'); expect(controller.client.getStatus()).toBe('online');
+        expect((await controller.client.invoke(hostId, { channel: 'local-db:sessions:list', args: [] })).ok).toBe(true);
+      } finally { offHostVault(); offPhoneVault(); }
+      await call(hostId, `${UMEDA_COMMAND_PATH}/claim`, {});
+      recovery.close(); recovery = undefined;
+      host.client.stop();
+      await vi.waitFor(() => expect(host.client.getStatus()).not.toBe('online'));
+      const clientId = 'offline-inbox-interop';
+      const input = { clientId, sessionId: 'task-inbox-interop', targetDeviceId: hostId, sendAtMs: Date.now(),
+        expectedClearBoundaryMs: null, message: { clientId, durableDelivery: true, text: 'interop',
+          persistedContent: '{"text":"interop"}', chatMessage: { clientId }, createOpts: { agentKind: 'codex' } } };
+      expect(await call(phoneId, UMEDA_COMMAND_PATH, input)).toMatchObject({ receipt: { state: 'queued' } });
+      controller.client.stop();
+      host.client.start();
+      await vi.waitFor(() => expect(host.client.getStatus()).toBe('online'), { timeout: 10_000 });
+      let notified = false;
+      const off = host.client.onFrame(env => {
+        if (env.kind === 'push' && (env.payload as { channel?: string })?.channel === UMEDA_COMMAND_NOTICE) notified = true;
+      });
+      try {
+        expect(await call(phoneId, UMEDA_COMMAND_PATH, input)).toMatchObject({ receipt: { state: 'queued' } });
+        await vi.waitFor(() => expect(notified).toBe(true), { timeout: 5_000 });
+        const { command } = await call(hostId, `${UMEDA_COMMAND_PATH}/claim`, {});
+        expect(command).toMatchObject({ ...input, sourceDeviceId: phoneId });
+        await call(hostId, `${UMEDA_COMMAND_PATH}/settle`, { sourceDeviceId: phoneId, clientId, leaseId: command.leaseId, state: 'accepted' });
+        expect(await call(hostId, `${UMEDA_COMMAND_PATH}/claim`, {})).toEqual({ command: null });
+        expect(await call(phoneId, UMEDA_COMMAND_PATH, input)).toMatchObject({ receipt: { state: 'accepted' } });
+      } finally { off(); }
+    }
   } finally {
     recovery?.close();
     data.close();

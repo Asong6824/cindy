@@ -1060,6 +1060,9 @@ function darwinEnvPrefix() {
  */
 function devEnvEntries(env) {
   return [
+    // Preserve this launch's explicit heap override across Terminal/cmd. When
+    // absent, clear a stale Terminal value and let the dev wrapper set its default.
+    ['NODE_OPTIONS', env.NODE_OPTIONS],
     // --region 经 CINDY_AUTH_REGION 注入 dev-remote-env / Forge / Vite，同一个值
     // 同时决定区域身份与 --endpoints-cdn 的自举 CDN 基址。
     ['CINDY_AUTH_REGION', env.CINDY_AUTH_REGION],

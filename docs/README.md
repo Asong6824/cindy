@@ -7,6 +7,9 @@
 | 文档 | 类型 | 状态 | 治理/相关代码 | owner |
 |---|---|---|---|---|
 | [README.md](./README.md) | 索引 | — | `docs/` 文档目录 | — |
+| [Umeda 产品方向](product-rules/umeda-product-direction.md) | 个人分支产品裁决 | authoritative（仅 Umeda） | 应用托管资料库、React 与原生分工、个人工作生活终端 | — |
+| [Umeda 客户端架构](dev-rules/umeda-client-architecture.md) | 个人分支目标架构 | authoritative（仅 Umeda） | 客户端资料服务、平台适配、数据归属与迁移约定；不代表已实现 | — |
+| [Umeda 优化路线图](umeda-optimization-roadmap.md) | 现状盘点与实施计划 | 参考 | 当前代码差距、批次、依赖与验收 | — |
 | [product-rules/README.md](./product-rules/README.md) | 产品规则索引 | authoritative | Cindy 产品行为、体验与边界 | — |
 | [core-product-principles.md](./product-rules/core-product-principles.md) | 产品原则 | authoritative | Cindy Core、Agent、Skill、插件与多端产品边界 | — |
 | [im-message-presentation.md](./product-rules/im-message-presentation.md) | 产品契约 | authoritative | IM 入站上下文、快照计数与 App 完成提醒 | — |

@@ -259,7 +259,9 @@
     "waitingForNetwork": "待网络重通，即遣之",
     "queued": "方候",
     "retryImage": "重呈此图",
-    "waitingMessage": "待遣之讯：{{text}}"
+    "waitingMessage": "待遣之讯：{{text}}",
+    "cloudQueued": "已存云端，待电脑收取",
+    "cloudQueuedMessage": "已存云端，待电脑收取：{{text}}"
   },
   "systemCard": {
     "contextRebuild": {

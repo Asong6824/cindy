@@ -1,3 +1,5 @@
+import { startWorkSync, wakeWorkSync } from '../work-management/sync';
+import { WORK_CHANGE_NOTICE } from '@cindy/maker-shared/work-replication';
 import { PROVIDER_SHARE_AVAILABILITY_CAPABILITY, readShareAvailabilityCatalog } from './providerShareAvailability.js';
 import { pluginDeviceSync } from '../cindy-brain/index.js';
 import { PLUGIN_SYNC_CHANNEL } from '../cindy-brain/deviceSyncSlot.js';
@@ -184,6 +186,10 @@ import { createSubscriptionReplayScheduler, isPermanentSubscriptionReplayError }
 import { getNotificationImageLabel, getSessionNotificationBody } from '../sessionNotificationCopy';
 import { deviceLinkApiFetch, officialDeviceLinkApiBase, resolveDeviceLinkApiBase } from './deviceLinkApi.js';
 import { activeSelfHostedRelay } from './selfHostedRelayRouting.js';
+import { createDesktopUmedaInbox } from './umedaCommands';
+import { createDesktopVaultSync } from '../vault-sync/runtime';
+import { UMEDA_COMMAND_NOTICE, VAULT_CHANGE_NOTICE, parseVaultChange } from '@cindy/device-link';
+
 import { currentRelayFrameAuth } from './selfHostedRelayFrameAuth.js';
 import { ensureInvokeLinkReady, invokeWithClosedLinkRecovery, requiresSessionLink } from './linkRecovery';
 import { invalidatePluginOauth } from '../plugin-oauth/runtime.js';
@@ -196,6 +202,9 @@ import {
 
 // register.ts 从 device-link/index 导入 setBusyProbe;改用 busyReporter 后在此 re-export 保持其导入不变。
 export { setBusyProbe };
+
+let umedaInbox: ReturnType<typeof createDesktopUmedaInbox> | null = null;
+let vaultSync: ReturnType<typeof createDesktopVaultSync> | null = null;
 
 const log = createLogger('device-link');
 // relay 建连专用的 DNS 回退(成功缓存 / 失败与慢解析回退最近成功地址)。
@@ -1025,6 +1034,9 @@ export function initDeviceLinkService(options: DeviceLinkServiceOptions = {}): v
   });
 
   client.onStatusChange((status) => {
+    umedaInbox?.wake();
+    vaultSync?.wake();
+    wakeWorkSync();
     if (status !== 'online') {
       stopFilePeers();
       invalidatePluginOauth();
@@ -1222,6 +1234,19 @@ export function initDeviceLinkService(options: DeviceLinkServiceOptions = {}): v
     replayActiveSubscriptions(`inbound-link-accepted:${deviceId.slice(0, 8)}`, deviceId);
   });
   wireInboundDispatch(client);
+  umedaInbox = createDesktopUmedaInbox(() => !!client && client.getStatus() === 'online'
+    && !linkTornDown && (!arbiter || arbiter.isOwner()) && readDeviceLinkSettings().remoteControlEnabled);
+  vaultSync = createDesktopVaultSync(() => !linkTornDown && (!arbiter || arbiter.isOwner()));
+  vaultSync.wake();
+  const workSync = startWorkSync(() => !linkTornDown && (!arbiter || arbiter.isOwner()));
+  onQuit('work-sync', () => workSync.stop());
+  client.onFrame((env) => {
+    if (env.kind === 'push' && (env.payload as { channel?: string })?.channel === WORK_CHANGE_NOTICE) wakeWorkSync();
+    if (env.kind === 'push' && (env.payload as { channel?: string })?.channel === UMEDA_COMMAND_NOTICE) umedaInbox?.wake();
+    if (env.kind === 'push' && (env.payload as { channel?: string })?.channel === VAULT_CHANGE_NOTICE) {
+      const change = parseVaultChange((env.payload as { payload?: unknown }).payload); if (change) vaultSync?.changed(change.vaultId, change.revision);
+    }
+  });
   // outbox flush 的 presence 显式离线门禁(运行期接线,模块顶层会撞 import 环 TDZ)
   setDispatchPresenceOfflineCheck(isPresenceExplicitlyOffline);
 
@@ -1440,6 +1465,10 @@ export function initDeviceLinkService(options: DeviceLinkServiceOptions = {}): v
   });
   unsubscribeAccessTokenRefresh = authManager.onAccessTokenRefreshed(reconnectAfterAccessTokenRefresh);
   onQuit('device-link', () => {
+    umedaInbox?.stop();
+    umedaInbox = null;
+    vaultSync?.stop();
+    vaultSync = null;
     authRealmReconnectGeneration += 1;
     unsubscribeAuthState?.();
     unsubscribeAuthState = null;
@@ -1738,6 +1767,7 @@ export async function setRemoteControlEnabled(enabled: boolean): Promise<void> {
   // can resume after the permission change.
   syncRemoteControlAccessGeneration();
   client?.sendPresence({ remoteControlEnabled: enabled });
+  umedaInbox?.wake();
   if (!enabled && client) {
     // 开关关闭立即踢断所有在控链路(server 侧此后也拒转发,双保险)
     dropAllControllers(client, 'toggle-off');

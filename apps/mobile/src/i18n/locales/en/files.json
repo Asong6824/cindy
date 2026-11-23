@@ -143,5 +143,14 @@
   },
   "gallery": {
     "cacheMiss": "This media isn't cached on your phone yet. Open it again once your computer is connected"
+  },
+  "vault": {
+    "title": "Vault",
+    "cloud": "Cloud files",
+    "offline": "Offline · saved content",
+    "refresh": "Refresh",
+    "openFile": "Download and open",
+    "readError": "This file is unavailable. Connect to download it.",
+    "empty": "No synced files yet."
   }
 }

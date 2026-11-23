@@ -87,7 +87,7 @@ export function useActiveMainView() {
     }
   }, [history, matchedKey, location.key, location.pathname, location.search, location.hash]);
 
-  const isGhostMainView = location.pathname === '/apps' || location.pathname.startsWith('/apps/');
+  const isGhostMainView = location.pathname === '/apps' || location.pathname.startsWith('/apps/') || location.pathname === '/work';
   const activeKey: MainViewKey | null =
     matchedKey ?? (isGhostMainView ? null : history.current.lastMatchedKey);
 

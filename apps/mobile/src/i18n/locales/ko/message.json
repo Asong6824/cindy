@@ -259,7 +259,9 @@
     "waitingForNetwork": "네트워크가 돌아오면 전송",
     "queued": "대기 중",
     "retryImage": "이 이미지 다시 올리기",
-    "waitingMessage": "전송 대기 중인 메시지:{{text}}"
+    "waitingMessage": "전송 대기 중인 메시지:{{text}}",
+    "cloudQueued": "클라우드에 저장됨 · 컴퓨터 수신 대기",
+    "cloudQueuedMessage": "클라우드에 저장됨 · 컴퓨터 수신 대기: {{text}}"
   },
   "systemCard": {
     "pluginModelRoute": {

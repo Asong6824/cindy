@@ -117,6 +117,16 @@ function touch(type: 'Start' | 'Move' | 'End' | 'Cancel', x = 0, y = 0, count = 
 function flush() {
   act(() => { for (const [id, callback] of [...frames]) { frames.delete(id); callback(0); } });
 }
+// Cloud ownership must be distinguishable from a phone-local waiting message; an
+// expired cloud command offers removal, never an ineffective retry of its sealed ID.
+it('shows cloud receipt status and removes retry for a terminal cloud command', () => {
+  show({ actions: null, phase: 'waiting', queueIndex: null, cloudQueued: true });
+  act(() => vi.advanceTimersByTime(1_000));
+  expect(host.textContent).toContain('message.queue.cloudQueued');
+  show({ actions: null, phase: 'failed', queueIndex: null, cloudTerminal: true });
+  expect(host.querySelector('[data-testid="pendingSend.outboxRetry.a"]')).toBeNull();
+  expect(host.querySelector('[data-testid="pendingSend.outboxRemove.a"]')).not.toBeNull();
+});
 it.each([null, 'a'])('toggles the same message for selection %s, allowing finger jitter', (selected) => {
   show({}, selected); touch('Start'); touch('Move', 3, 2); touch('End', 3, 2);
   expect(select).not.toHaveBeenCalled(); flush(); flush();

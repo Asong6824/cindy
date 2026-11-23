@@ -659,7 +659,9 @@
     "taskCleared": "Cette tâche a été effacée après l'envoi de votre message. Le message enregistré a été conservé pour que vous puissiez le consulter.",
     "restoreFailed": "Impossible de restaurer les messages enregistrés. Ils n'ont pas été supprimés. Redémarrez l'application et réessayez.",
     "recoveryTarget": "Gardez l'ordinateur d'origine pendant la récupération de cette tâche. Ses messages suivants sont toujours enregistrés.",
-    "taskAlreadyCreated": "Cette tâche existe déjà sur l'ordinateur. Ses messages enregistrés y reprendront."
+    "taskAlreadyCreated": "Cette tâche existe déjà sur l'ordinateur. Ses messages enregistrés y reprendront.",
+    "cloudFailed": "Ce message n’a pas été remis à l’ordinateur. Vérifiez la tâche avant d’envoyer un nouveau message.",
+    "cloudExpired": "L’ordinateur n’a pas récupéré ce message sous 24 heures. Le message a expiré."
   },
   "remoteError": {
     "SSH_HARNESS_SWITCH_UNSUPPORTED": "Cette tâche SSH ne peut pas changer de Harness. Choisissez un modèle dans son Harness actuel, ou créez une nouvelle tâche SSH avec le Harness souhaité.",

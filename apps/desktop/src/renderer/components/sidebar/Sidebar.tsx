@@ -28,6 +28,7 @@ import { ConversationSearchProvider } from '@/features/cc-agent/sidebar/conversa
 import { isSecondaryWindow } from '@/lib/secondaryWindow';
 import { CHROME_ACTIONS_GEOMETRY } from '@/components/layout/chromeActionsGeometry';
 import { SidebarTopNav } from './SidebarTopNav';
+import { WorkNavEntry } from '@/features/work-management/WorkNavEntry';
 import { UpdateBanner } from './UpdateBanner';
 import { DatabaseSizeWarningBanner } from './DatabaseSizeWarningBanner';
 import { NativeBuildBanner } from './NativeBuildBanner';
@@ -250,6 +251,8 @@ export function Sidebar({
             ) : (
               <SidebarTopNav section={ownsTopNavScrollableRows ? 'pinned' : 'all'} />
             )}
+
+            <WorkNavEntry compact={isRail} />
 
             {/* Upper: feature-injected content slot.
               The current Feature Layout injects either an expanded or collapsed

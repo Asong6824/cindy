@@ -1,3 +1,4 @@
+import { WORK_SYNC_STATUS_CHANNEL, WORK_SYNC_RESOLVE_CHANNEL, WORK_SYNC_CONFLICT_CHANNEL } from '@cindy/maker-shared/work-management';
 import { APP_PREFERENCE_REQUEST, APP_PREFERENCE_REPLY, APP_SETTINGS_CHANGED, type AppPreferenceControlBridge } from '../shared/appPreferenceControl.js';
 import type { VoiceConversationApi } from '../shared/voiceConversation';
 import { PERFORMANCE_TRACE_CHANNEL, PERFORMANCE_TRACE_EVENTS_CHANNEL, PERFORMANCE_TRACE_STATE_CHANNEL, type PerformanceTraceAPI, type PerformanceTraceState } from '../shared/performanceTrace';
@@ -1144,6 +1145,18 @@ const readMicrophonePermissionSnapshot = createMicrophonePermissionSnapshot();
 const voiceInputDataSnapshot = createVoiceInputDataSnapshot();
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  workManagement: {
+    syncConflict: (requestId: string, owner: import('@cindy/maker-shared/work-management').WorkOwnerStamp) => ipcRenderer.invoke(WORK_SYNC_CONFLICT_CHANNEL, requestId, owner),
+    syncStatus: (owner: import('@cindy/maker-shared/work-management').WorkOwnerStamp) => ipcRenderer.invoke(WORK_SYNC_STATUS_CHANNEL, owner),
+    resolveSync: (requestId: string, choice: 'local' | 'remote', owner: import('@cindy/maker-shared/work-management').WorkOwnerStamp) => ipcRenderer.invoke(WORK_SYNC_RESOLVE_CHANNEL, requestId, choice, owner),
+    available: (owner: import('@cindy/maker-shared/work-management').WorkOwnerStamp): Promise<boolean> => ipcRenderer.invoke('umeda-work:available', owner),
+    execute: (request: import('@cindy/maker-shared/work-management').WorkManagementRequest, owner: import('@cindy/maker-shared/work-management').WorkOwnerStamp): Promise<import('@cindy/maker-shared/work-management').WorkManagementResponse> => ipcRenderer.invoke('umeda-work:execute', request, owner),
+    onChanged: (listener: (owner: import('@cindy/maker-shared/work-management').WorkOwnerStamp) => void): (() => void) => {
+      const receive = (_event: Electron.IpcRendererEvent, owner: unknown) => { if (isDataOwnerPushStamp(owner)) listener(owner); };
+      ipcRenderer.on('umeda-work:changed', receive);
+      return () => { ipcRenderer.removeListener('umeda-work:changed', receive); };
+    },
+  },
   appPreferenceControl: {
     onSettingsChanged(listener) {
       const receive = (_event: Electron.IpcRendererEvent, value: Parameters<typeof listener>[0]) => listener(value);

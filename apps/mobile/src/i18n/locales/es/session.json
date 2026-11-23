@@ -659,7 +659,9 @@
     "taskCleared": "Esta tarea se borró después de enviar el mensaje. El mensaje guardado se ha conservado para que usted lo revise.",
     "restoreFailed": "Los mensajes guardados no se pudieron restaurar. No han sido eliminados. Reinicie la aplicación y vuelva a intentarlo.",
     "recoveryTarget": "Conserve la computadora original mientras recupera esta tarea. Sus mensajes posteriores todavía están guardados.",
-    "taskAlreadyCreated": "Esta tarea ya existe en la computadora. Sus mensajes guardados se reanudarán allí."
+    "taskAlreadyCreated": "Esta tarea ya existe en la computadora. Sus mensajes guardados se reanudarán allí.",
+    "cloudFailed": "Este mensaje no se entregó al ordenador. Revisa la tarea antes de enviar un mensaje nuevo.",
+    "cloudExpired": "El ordenador no recogió este mensaje en 24 horas. El mensaje ha caducado."
   },
   "remoteError": {
     "SSH_HARNESS_SWITCH_UNSUPPORTED": "Esta tarea SSH no puede cambiar a Harness. Elija un modelo en su Harness actual, o cree una nueva tarea SSH con el Harness que necesita.",

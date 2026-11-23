@@ -259,7 +259,9 @@
     "waitingForNetwork": "ネットワークが戻ったら送信",
     "queued": "順番待ち",
     "retryImage": "この画像を再アップロード",
-    "waitingMessage": "送信待ちのメッセージ:{{text}}"
+    "waitingMessage": "送信待ちのメッセージ:{{text}}",
+    "cloudQueued": "クラウドに保存済み・コンピュータの受信待ち",
+    "cloudQueuedMessage": "クラウドに保存済み・コンピュータの受信待ち：{{text}}"
   },
   "systemCard": {
     "pluginModelRoute": {

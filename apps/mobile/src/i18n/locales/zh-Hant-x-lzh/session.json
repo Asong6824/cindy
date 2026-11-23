@@ -656,7 +656,9 @@
     "taskCleared": "遣出之後，此差事已遭清空。訊仍存於手機，請核對後處置。",
     "restoreFailed": "待遣之訊暫不能復原，已存之內容未刪。請重啟 App 後再試。",
     "recoveryTarget": "復原此差事時，請保留原機；後續諸訊仍存於手機。",
-    "taskAlreadyCreated": "機上已立此差事，已存之訊將於原差事中續遣。"
+    "taskAlreadyCreated": "機上已立此差事，已存之訊將於原差事中續遣。",
+    "cloudFailed": "此消息未達電腦。請察任務現況，再發新消息。",
+    "cloudExpired": "電腦逾二十四時未取，此消息已過期。"
   },
   "remoteError": {
     "SSH_HARNESS_SWITCH_UNSUPPORTED": "此 SSH 差事暫不支援切換 Harness。請擇當前 Harness 下之模型，或以所需 Harness 另立新 SSH 差事。",

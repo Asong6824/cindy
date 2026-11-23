@@ -260,7 +260,9 @@
     "queued": "En file d'attente",
     "retryImage": "Renvoyer cette image",
     "waitingMessage": "En attente d'envoi : {{text}}",
-    "imagesNotUploaded_many": "{{count}} images n'ont pas été envoyées"
+    "imagesNotUploaded_many": "{{count}} images n'ont pas été envoyées",
+    "cloudQueued": "Enregistré dans le cloud ; en attente de l’ordinateur",
+    "cloudQueuedMessage": "Enregistré dans le cloud ; en attente de l’ordinateur : {{text}}"
   },
   "systemCard": {
     "pluginModelRoute": {

@@ -6,6 +6,22 @@
 
 ## 开发与进程边界
 
+- 修改 Umeda 资料库、`main/vault-sync/`、KOS 宿主或其存储与生命周期前，先读
+  [Umeda 客户端架构](../../docs/dev-rules/umeda-client-architecture.md)；区分托管目录同步、
+  插件常驻资料服务与页面投影，不把页面重建等同于宿主服务重建。
+- Agent 读写 Umeda 知识库沿 `main/vault-sync/knowledge.ts` 与共享 helper `knowledge` 类进入。
+  当前仅操作本机托管镜像；更新必须带内容哈希，保留旧版并沿既有同步传播，不另造同步队列，
+  不把 `local_saved` 当成云端或手机已收到。PDF／EPUB 页面派生索引尚未与此入口归并。
+- Umeda 工作检查点沿 `main/work-records/` 与 helper `work` 类进入，保存应用级工作说明，
+  不放进 KOS 或原生 Agent 配置目录。修订不可变，按 owner／任务／清空代次隔离；自述与
+  宿主 Git 观察分开。换引擎复用 `sessionAgentSwitchHandler`，不得另建任务执行状态机。
+- Umeda 业务目标／项目／任务沿 `main/work-management/host.ts` 与数据库命名事务
+  `umedaWork.execute` 进入，各引擎共用 Profile DB。按主人提示读写，不在消息、项目打开或
+  引擎切换时自动查询和注入背景；批量进度更新必须原子、校验版本并保留幂等回执。
+  业务记录不随执行 Session 清空而删除，不自动迁入旧 KOS，不另建执行队列。
+  桌面 `/work`（工作管理）的人工操作经窄 preload IPC 与 Agent 共用
+  `main/work-management/service.ts`；人工来源标为 user，不能伪造执行 Session。
+  变更通知只推 owner stamp 让页面重读，不携带业务正文或触发模型；账号切换与对象切换须丢弃迟到结果。
 - 启动、调试或验证 Desktop 时，必须先读[Desktop 开发](../../docs/dev-rules/desktop-development.md)。
 - 修改 Desktop Renderer、preload、BrowserWindow、WebView、IPC、CSP、导航或 Electron
   特权能力前，必须先读[Electron 安全与进程边界](../../docs/dev-rules/electron-security-and-process-boundaries.md)。

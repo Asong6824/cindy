@@ -13,6 +13,8 @@ export default {
   notCovered: 'Native macOS material generation; task list, account and update contents',
   stubs: {
     'src/renderer/components/sidebar/SidebarTopNav': 'export const SidebarTopNav = () => null;',
+    // This specimen measures the shell hairline; personal navigation is exercised by umeda-work.
+    'src/renderer/features/work-management/WorkNavEntry': 'export const WorkNavEntry = () => null;',
     'src/renderer/components/sidebar/UpdateBanner': 'export const UpdateBanner = () => null;',
     'src/renderer/components/sidebar/DatabaseSizeWarningBanner': 'export const DatabaseSizeWarningBanner = () => null;',
     'src/renderer/components/sidebar/NativeBuildBanner': 'export const NativeBuildBanner = () => null;',

@@ -10,6 +10,8 @@
 
 | 主题 | 正文 |
 | --- | --- |
+| 个人 Umeda 工作生活终端、应用托管资料库与混合技术方向 | [Umeda 产品方向](umeda-product-direction.md)；个人分支裁决，不改写普通 Cindy 产品范围 |
+| Umeda 跨设备／跨 Agent 用户故事与共享工作管理数据的按需加载 | [用户故事](umeda-user-stories.md)；目标体验与验收约束，非已交付能力清单 |
 | Agent 管理用户自己的资源、跨电脑工具与能力发现 | [Agent 与用户同权](agent-user-parity.md) |
 | 任务、对话、消息的用户称谓 | [命名](task-and-conversation-naming.md) |
 | 消息发送、来源标签与模型说明 | [消息来源](message-source.md) |

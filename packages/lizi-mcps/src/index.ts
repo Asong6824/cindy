@@ -31,6 +31,9 @@ export * from './ssh/index.js';
 
 export * from './lizi_xdtHelperMcpServer.js';
 export * from './lizi_xdtHelperToolRegistry.js';
+export type { KnowledgeRequest, KnowledgeCallback } from './xdt-helper/knowledge.js';
+export type { WorkRecordRequest, WorkRecordsCallback } from './xdt-helper/work_records.js';
+export type { WorkManagementCallback } from './xdt-helper/work_management.js';
 export * from './xdt-helper/index.js';
 
 export { createCindyDocsMcpServer } from './cindy_docsMcpServer.js';
