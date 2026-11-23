@@ -58,33 +58,25 @@ export const PROJECT_ROOT = path.resolve(DESKTOP_ROOT, '../..');
 export const RELEASE_DIR = path.join(DESKTOP_ROOT, 'release');
 
 /**
- * electron-forge 打包产物基名(2026-07-17 品牌翻转 xdt-maker → Cindy):
+ * 个人 Umeda 分支的 electron-forge 打包产物基名:
  *   - packaged 目录  out/<PACKAGED_APP_NAME>-<platform>-<arch>/
  *   - Windows exe    <packaged>/<PACKAGED_APP_NAME>.exe
  *   - macOS .app     <packaged>/<PACKAGED_APP_NAME>.app(Mach-O 同名)
- *   - Linux 二进制   <packaged>/<PACKAGED_APP_NAME>
- * ⚠️ 值必须与 packages/maker-shared/src/brandIdentity.ts 的
- * BRAND_IDENTITY.executableName(= apps/desktop/package.json productName)一致
- * ——.mjs 无法 import TS 单点,只能镜像字面量;一致性由
- * scripts/__tests__/brand-identity-sync.test.mjs 断言兜底。
- * ⚠️ 只描述「本地构建产物路径」。OSS/CDN 渠道前缀与发布产物文件名
- * (xdt-maker-<version>-Setup.exe / .dmg / .zip 等)仍留在老值:新渠道 bucket
- * 未就绪,发布目标另议,不随本次翻转。
+ *   - Linux 二进制   <packaged>/Cindy(保留托管安装合同)
+ * 与 Forge、smoke 和 package-lib 共用 desktop/packaging.json。
+ * 名称与兼容身份分开:package.json productName、appId、userData 仍走旧身份。
+ * 这里只描述本地产物路径;OSS/CDN 更新渠道不随名称变化。
  */
-export const PACKAGED_APP_NAME = 'Cindy';
+const PACKAGING = JSON.parse(fs.readFileSync(path.join(DESKTOP_ROOT, 'packaging.json'), 'utf8'));
+export const PACKAGED_APP_NAME = PACKAGING.executableNameByRegion.global;
 
 /**
  * 按区域取打包产物基名(exe / .app / 安装目录 / 快捷方式全部跟随)。
- * cn/global 同值 'Cindy'(2026-07-26 显示名统一决策,放弃文件层双装隔离),
- * dev 独立。镜像 brandIdentity.ts 的 executableNameByRegion,一致性由
- * scripts/__tests__/brand-identity-sync.test.mjs 断言兜底。
+ * cn/global 同值 Umeda,dev 使用 UmedaDev。值来自 packaging.json,
+ * 不再镜像用于存量兼容的 brandIdentity.ts。
  * PACKAGED_APP_NAME 保留为正式版共同基线值,供未传 region 的 legacy 脚本使用。
  */
-export const PACKAGED_APP_NAME_BY_REGION = Object.freeze({
-  cn: 'Cindy',
-  global: 'Cindy',
-  dev: 'CindyDev',
-});
+export const PACKAGED_APP_NAME_BY_REGION = Object.freeze(PACKAGING.executableNameByRegion);
 
 export function packagedAppName(region = 'global') {
   const name = PACKAGED_APP_NAME_BY_REGION[region];
@@ -93,10 +85,10 @@ export function packagedAppName(region = 'global') {
 }
 
 /**
- * 发布产物文件名基名(安装包 / 热更 zip / OSS key 里的文件名,用户下载可见)。
+ * Cindy 发布渠道的兼容文件名基名(OSS key 里的文件名)。
  * 老 'xdt-maker-*' 命名只属于已冻结的 /xdt-maker 渠道;新渠道(2026-07-19 实查
- * 现网 manifest 全 404,从零起步)统一用 cindy 命名,与 package-desktop.mjs 的
- * 本地产物命名对齐。
+ * 现网 manifest 全 404,从零起步)统一用 cindy 命名。
+ * 历史渠道保持兼容;个人 Umeda 本地包命名由 package-lib.mjs 单独消费 packaging.json。
  */
 export const RELEASE_ARTIFACT_BASENAME_BY_REGION = Object.freeze({
   cn: 'cindy',
@@ -121,7 +113,7 @@ export function releaseArtifactBasename(region = 'global') {
  */
 export function assertNotPublishingCindyToLegacyChannel(ossPrefix) {
   if (process.env.XDT_ALLOW_LEGACY_CHANNEL_RELEASE === '1') return;
-  if (PACKAGED_APP_NAME === 'Cindy' && ossPrefix === 'xdt-maker') {
+  if (ossPrefix === 'xdt-maker') {
     throw new Error(
       '[channel-freeze] 拒绝把 Cindy 身份的产物发布到已冻结的 /xdt-maker 渠道:'
       + '存量用户更新器会因 exe 布局变化(Cindy.exe)当场断裂。'
@@ -1197,7 +1189,7 @@ export function runSmokeTest(platform, arch, region = 'global') {
       'scripts/smoke-packaged.mjs',
       `--platform=${platform}`,
       `--arch=${arch}`,
-      // 产物基名按区域派生(cn/global 'Cindy' / dev 'CindyDev')。
+      // .app / out 目录使用个人打包名;Linux 内部可执行文件名保持兼容。
       `--app-name=${packagedAppName(region)}`,
     ],
     { stdio: 'inherit', cwd: DESKTOP_ROOT, shell: false },

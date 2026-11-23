@@ -14,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 import {
   PLATFORM_ARCHS,
   VERSIONLESS_VERSION,
+  artifactBaseName,
   assertPageManualCommitted,
   buildBuildInfo,
   debianArch,
@@ -21,6 +22,15 @@ import {
   parsePackageArgs,
   packageNodeOptions,
 } from '../../apps/desktop/scripts/ci/package-lib.mjs';
+
+// Regression: the personal fork still emitted Cindy-named artifacts. Exercise
+// the production naming/build-info entries; existing tests only covered archs
+// and release metadata. Minimal input: an unversioned local package. Tier: unit.
+test('personal desktop artifacts and build metadata identify Umeda', () => {
+  assert.equal(artifactBaseName({ version: '0.0.0', versionless: true }), 'umeda-unversioned');
+  assert.equal(artifactBaseName({ version: '1.2.3', versionless: false }), 'umeda-1.2.3');
+  assert.equal(buildBuildInfo({ versionless: true, platform: 'darwin', arch: 'arm64', files: [], signing: {} }).product, 'umeda-desktop');
+});
 
 test('package Node options add headroom and preserve explicit limits and unrelated options', () => {
   const clean = { NODE_OPTIONS: '--trace-warnings' };
@@ -48,7 +58,7 @@ test('Desktop package and build launch Node with the expected heap, arguments an
   // Exercise the actual launcher against a local fake Forge CLI; do not package
   // the app or access developer data from a default unit test.
   const desktop = path.join(temp, 'desktop with spaces');
-  for (const rel of ['scripts/forge-cli.mjs', 'scripts/ci/package-lib.mjs']) {
+  for (const rel of ['scripts/forge-cli.mjs', 'scripts/ci/package-lib.mjs', 'packaging.json']) {
     const dest = path.join(desktop, rel);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.copyFileSync(new URL('../../apps/desktop/' + rel, import.meta.url), dest);

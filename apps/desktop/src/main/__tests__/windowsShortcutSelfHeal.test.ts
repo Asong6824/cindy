@@ -20,12 +20,14 @@ vi.mock('../logger', () => ({
 }));
 
 import { healWindowsShortcuts, type ShortcutSelfHealDeps } from '../windowsShortcutSelfHeal';
-import { brandAppId, brandExecutableName } from '@cindy/maker-shared/brand-identity';
+import { brandAppId } from '@cindy/maker-shared/brand-identity';
 
 // 本文件专测 CN 产物的历史快捷方式修复，显式固定区域，避免继承宿主环境。
 const EXPECTED_APP_ID = brandAppId('cn');
-// 重建目标 .lnk 基名(与实现的 SHORTCUT_BASENAME 同源;cn = 'Cindy')。
-const NEW_SHORTCUT_NAME = brandExecutableName('cn');
+// Regression: package labels are Umeda while AUMID remains the legacy CN ID.
+// Existing cases protect the real repair entry, foreign targets and failures.
+// Minimal input: an old shortcut targeting this exe. Tier: unit (in-memory IO).
+const NEW_SHORTCUT_NAME = 'Umeda';
 
 const EXE = 'C:\\Program Files\\xdt-maker\\xdt-maker.exe';
 const DESKTOP = 'C:\\Users\\u\\Desktop';
@@ -69,6 +71,13 @@ const lnk = (target: string, extra?: Partial<Electron.ShortcutDetails>): Electro
 
 describe('healWindowsShortcuts', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it('renames an owned Cindy shortcut to Umeda without changing its AUMID', async () => {
+    const { files, deps } = makeHarness({ [at(DESKTOP, 'Cindy')]: lnk(EXE) });
+    await healWindowsShortcuts(deps);
+    expect(files.has(at(DESKTOP, 'Cindy'))).toBe(false);
+    expect(files.get(at(DESKTOP, 'Umeda'))).toMatchObject({ target: EXE, appUserModelId: EXPECTED_APP_ID });
+  });
 
   it('桌面旧名 XDMaker.lnk → 以 NEW_SHORTCUT_NAME 重建并删除旧文件,AUMID/icon 强制刷新', async () => {
     const { files, writes, deps } = makeHarness({

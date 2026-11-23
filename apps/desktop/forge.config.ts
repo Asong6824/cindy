@@ -17,7 +17,6 @@ import {
   allDeepLinkSchemes,
   brandAppId,
   brandBundleIdPrefix,
-  brandExecutableName,
   resolveCindyRegion,
 } from '@cindy/maker-shared/brand-identity';
 import { preparePackagedNodePty } from './forge-node-pty';
@@ -37,6 +36,13 @@ import {
 } from './src/main/windowsUpdaterPrerequisites';
 
 const _require = createRequire(__filename);
+// Personal-fork package names only. OS IDs, credential identities and userData
+// continue to come from brandIdentity.ts for compatibility with existing data.
+const PACKAGING = _require('./packaging.json') as {
+  displayName: string;
+  executableNameByRegion: Record<'cn' | 'global' | 'dev', string>;
+  linuxExecutableNameByRegion: Record<'cn' | 'global' | 'dev', string>;
+};
 const DESKTOP_PACKAGE_VERSION = (_require('./package.json') as { version: string }).version;
 const CINDY_SOURCE_METADATA_PATH = path.join(__dirname, 'resources', 'cindy-source.json');
 
@@ -100,13 +106,14 @@ process.env.VITE_CINDY_AUTH_REGION = CINDY_REGION;
 const CINDY_APP_ID = brandAppId(CINDY_REGION);
 const CINDY_UTI_PREFIX = brandBundleIdPrefix(CINDY_REGION);
 /**
- * 可执行文件基名,按区域派生(cn/global 同值 'Cindy',dev 'CindyDev';
- * 2026-07-26 显示名统一决策,cn/global 文件层双装隔离随之放弃,见
- * brandIdentity.ts executableNameByRegion doc)。运行时 userData 目录由 main
- * 入口按同一区域切换(src/main/regionUserData.ts),两端从 brand-identity
- * 同源派生,cn/global 数据仍分库。
+ * 个人包的可执行名与 .app / 安装器名称来自 packaging.json。
+ * 系统 ID 与 userData 继续使用 brand-identity 的兼容身份;
+ * src/main/regionUserData.ts 仍按区域选择原数据目录。
  */
-const CINDY_EXE = brandExecutableName(CINDY_REGION);
+const CINDY_EXE = PACKAGING.executableNameByRegion[CINDY_REGION];
+// Linux's managed installer and launcher have a persistent executable contract.
+// Keep it and the Debian package ID while changing the application display name.
+const LINUX_EXE = PACKAGING.linuxExecutableNameByRegion[CINDY_REGION];
 /** 更新器二进制文件名(cindy-updater.exe)。 */
 const UPDATER_EXE = `${BRAND_IDENTITY.updaterName}.exe`;
 
@@ -672,17 +679,17 @@ function signPackagedExes(buildPath: string): void {
 
 /**
  * macOS 打包显示名(与 win32metadata 同构):packaged 后把
- * .app 的 Info.plist 里 CFBundleDisplayName 改成 Cindy——Dock 名、Cmd+Tab、
+ * .app 的 Info.plist 里 CFBundleDisplayName 使用个人打包展示名——Dock 名、Cmd+Tab、
  * Finder、系统通知读的都是它(显示优先级 CFBundleDisplayName > CFBundleName)。
  *
  * ⚠️ 绝不能改 CFBundleName:Electron 启动时用主 app 的 CFBundleName 拼
  * `Frameworks/<CFBundleName> Helper.app` 查找 Helper(electron_main_delegate_mac.mm,
  * 唯一 fallback 是 'Electron Helper.app'),而 Helper 目录名跟随 packager name
- * (区域派生:cn/global 'Cindy' / dev 'CindyDev')。把 CFBundleName 改成
+ * (个人包区域派生:cn/global Umeda / dev UmedaDev)。把 CFBundleName 改成
  * 与 Helper 目录不一致的值会让包启动即 FATAL "Unable to find helper app"
  * (SIGTRAP;2026-07-21 dev region smoke 实踩)。
  * 代价:菜单栏粗体标题取自 CFBundleName 且运行时改不了,dev 构建上显示
- * CindyDev 而非 Cindy——cn/global(packager 已写 Cindy)不受影响,可接受。
+ * UmedaDev 而非 Umeda——cn/global 不受影响。
  *
  * 为什么在 postPackage 改而不是 packagerConfig:electron-packager 在
  * updatePlistFiles 里先合并 extendInfo、后用 appName/executableName 覆写
@@ -710,18 +717,18 @@ function applyMacPackagedDisplayName(buildPath: string, platform: string): void 
     // 否则 Electron 找不到 Helper app(见函数头 ⚠️)。
     const key = 'CFBundleDisplayName';
     // packager 必写该键,Set 即可;Add 兜底防未来 packager 行为变化。
-    const set = spawnSync('/usr/libexec/PlistBuddy', ['-c', `Set :${key} Cindy`, plistPath]);
+    const set = spawnSync('/usr/libexec/PlistBuddy', ['-c', `Set :${key} ${PACKAGING.displayName}`, plistPath]);
     if (set.status !== 0) {
       const add = spawnSync('/usr/libexec/PlistBuddy', [
         '-c',
-        `Add :${key} string Cindy`,
+        `Add :${key} string ${PACKAGING.displayName}`,
         plistPath,
       ]);
       if (add.status !== 0) {
         throw new Error(`[forge:postPackage] PlistBuddy failed to set ${key} in ${plistPath}`);
       }
     }
-    console.log(`[forge:postPackage] mac display name → Cindy (${appDir}/Contents/Info.plist)`);
+    console.log(`[forge:postPackage] mac display name → ${PACKAGING.displayName} (${appDir}/Contents/Info.plist)`);
   }
 }
 
@@ -1777,8 +1784,8 @@ const makers: ForgeConfig['makers'] = [
         mimeType: allDeepLinkSchemes().map((s) => `x-scheme-handler/${s}`),
         maintainer: 'Lizi <feedback@cindy.app>',
         // deb 包名规范要求小写;跟随区域 exe 名(cn/global cindy / dev cindydev)。
-        name: CINDY_EXE.toLowerCase(),
-        bin: CINDY_EXE,
+        name: LINUX_EXE.toLowerCase(),
+        bin: LINUX_EXE,
         productName: CINDY_EXE,
       },
     },
@@ -1835,15 +1842,15 @@ if (isWin) {
         // 不设时回落 package.json 的 npm 包描述,UAC 提权弹窗、文件属性、
         // 快捷方式悬停提示上就会显示那段面向开发者的文本。
         //
-        // ⚠️ 取 displayName 而非 CINDY_EXE:展示名两区(含 dev)共用 'Cindy',
-        // 而 exe 名 dev 派生为 'CindyDev'。用后者会让 dev 包的安装器显示
-        // CindyDev、装完的主 exe 却显示 Cindy(win32metadata 同样取
+        // 展示名取 PACKAGING.displayName，dev 可执行名为 UmedaDev。
+        // 用后者会让 dev 包的安装器显示 UmedaDev、主 exe 却显示 Umeda；
+        // win32metadata 同样取
         // displayName)——安装前后自相矛盾,正是本次要消除的那类不一致。
         // 文件名层的区分由 productName / shortcutName 承担,与展示层解耦。
         //
         // prepackaged 模式下 doPack 直接 return,extraMetadata 不会重写
         // 已由 electron-forge 打好的 app.asar 内 package.json。
-        extraMetadata: { description: BRAND_IDENTITY.displayName },
+        extraMetadata: { description: PACKAGING.displayName },
         nsis: {
           oneClick: false,
           allowElevation: true,
@@ -1893,26 +1900,25 @@ const config: ForgeConfig = {
         '**/{@img/{sharp-libvips-*,sharp-win32-*},loudness,native/sqlite-vec,node-pty,sherpa-onnx-{darwin,win,linux}-*}/**',
     },
     // 打包名(out 目录 / mac .app 包名 / Helper 目录名 / 主 plist CFBundleName)
-    // 按区域派生:cn/global 'Cindy'(2026-07-26 显示名统一,.app 撞名双装
-    // 互覆已被 owner 接受)/ dev 'CindyDev'(显式设值防 packager 回落
+    // 按个人打包配置派生:cn/global Umeda，dev UmedaDev(显式设值防 packager 回落
     // package.json productName 让 dev 与正式包撞名)。mac 的 Dock/Cmd+Tab/
     // 通知**显示名**由 postPackage 的 applyMacPackagedDisplayName 经
-    // CFBundleDisplayName 统一拉回 Cindy(对 dev 是唯一显示名来源;
+    // CFBundleDisplayName 统一使用 Umeda(对 dev 是唯一显示名来源;
     // CFBundleName 不可动,Electron 靠它找 Helper,见该函数注释)。
     name: CINDY_EXE,
-    executableName: CINDY_EXE,
+    executableName: process.platform === 'linux' ? LINUX_EXE : CINDY_EXE,
     // mac bundle id(与 Windows AUMID 同值,按区域派生;cn/global 是两个可并存
     // 的系统身份,与 mobile 的 com.xd.cindycn / com.xd.cindy 同一套)。
     appBundleId: CINDY_APP_ID,
     // exe 资源元数据(任务管理器进程名、文件右键属性的显示层)。只影响展示,
-    // 与 exe 文件名 / AUMID / userData 等标识符解耦;显示层两区共用 Cindy
+    // 与 exe 文件名 / AUMID / userData 等标识符解耦;显示层两区共用 Umeda
     // (与 mac 显示名口径一致)。FileDescription 走 BRAND_IDENTITY.displayName,
     // 与 NSIS maker 的 extraMetadata.description 同一表达式——安装器/卸载器
     // 与主 exe 的「说明」字段必须同值,否则 dev 包会安装前后显示两个名字。
     win32metadata: {
       CompanyName: 'XD',
-      ProductName: 'Cindy',
-      FileDescription: BRAND_IDENTITY.displayName,
+      ProductName: PACKAGING.displayName,
+      FileDescription: PACKAGING.displayName,
     },
     icon: 'resources/icon',
     // 自定义 URL scheme: xdt-maker://session/<id> | xdt-maker://project/<encoded-workingDir>

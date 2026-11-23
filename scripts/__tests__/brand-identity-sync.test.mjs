@@ -1,18 +1,19 @@
-// brand-identity-sync.test.mjs — 品牌标识符「TS 单点 ↔ .mjs 脚本镜像字面量」一致性断言。
+// 包名称与兼容存储身份的跨入口合同。
 //
 // 背景:packages/maker-shared/src/brandIdentity.ts 是标识符层身份的单一事实源,
-// 但 smoke / restart 等 .mjs 脚本无法 import TS,只能在各自文件顶部
-// 镜像字面量(均带注释指回单点)。本测试用正则读 TS 源码抽出字面量,与各脚本的
-// 镜像常量逐一比对——单点翻转后漏改任何一处镜像,这里立刻红灯。
+// restart / userData 镜像继续匹配 TS 单点;个人包可执行名由 packaging.json
+// 独立提供,通过生产 CI 查询与 smoke CLI 验证,避免改名顺带搬迁用户数据。
 //
-// 刻意用「读源码 + 正则」而不 import 被测脚本:避免脚本模块顶层副作用
-// (ali-oss / env 加载等),node --test 环境零依赖即可跑。
+// 存储静态合同仍读源码;smoke 使用唯一临时空目录,不启动实际客户端。
 
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import os from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { packagedAppName } from '../../apps/desktop/scripts/ci/lib.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -29,11 +30,6 @@ function extractLiteral(source, regex, label) {
 }
 
 const brandIdentitySource = readSource('packages/maker-shared/src/brandIdentity.ts');
-const EXECUTABLE_NAME = extractLiteral(
-  brandIdentitySource,
-  /executableName:\s*'([^']+)'/,
-  'brandIdentity.ts executableName',
-);
 const USER_DATA_DIR_NAME = extractLiteral(
   brandIdentitySource,
   /userDataDirName:\s*'([^']+)'/,
@@ -57,29 +53,32 @@ function extractRegionMap(source, mapName, label) {
   return map;
 }
 
-test('ci/lib.mjs PACKAGED_APP_NAME_BY_REGION mirrors brandIdentity.executableNameByRegion', () => {
-  const expected = extractRegionMap(
-    brandIdentitySource,
-    'executableNameByRegion',
-    'brandIdentity.ts executableNameByRegion',
-  );
-  const libSource = readSource('apps/desktop/scripts/ci/lib.mjs');
-  const actual = extractRegionMap(
-    libSource,
-    'PACKAGED_APP_NAME_BY_REGION',
-    'ci/lib.mjs PACKAGED_APP_NAME_BY_REGION',
-  );
-  assert.deepEqual(actual, expected);
+// Package names are now independent from the compatibility storage identity.
+// Production entry: CI artifact lookup and the smoke CLI. Previous literal
+// mirrors enforced Cindy names and missed the personal-fork output. Minimal
+// input: default Global package lookup; tier: root integration/contract checks.
+test('package lookup uses Umeda names while preserving explicit dev naming', () => {
+  assert.equal(packagedAppName(), 'Umeda');
+  assert.equal(packagedAppName('cn'), 'Umeda');
+  assert.equal(packagedAppName('dev'), 'UmedaDev');
+  assert.throws(() => packagedAppName('invalid'), /unknown region/);
 });
 
-test('smoke-packaged.mjs PACKAGED_APP_NAME mirrors brandIdentity.executableName', () => {
-  const smokeSource = readSource('apps/desktop/scripts/smoke-packaged.mjs');
-  const value = extractLiteral(
-    smokeSource,
-    /const PACKAGED_APP_NAME = '([^']+)';/,
-    'smoke-packaged.mjs PACKAGED_APP_NAME',
-  );
-  assert.equal(value, EXECUTABLE_NAME);
+test('smoke CLI locates renamed apps and the compatible Linux executable', (t) => {
+  const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'umeda-smoke-name-'));
+  t.after(() => fs.rmSync(empty, { recursive: true, force: true }));
+  for (const [platform, executable] of [
+    ['win32', 'Umeda.exe'],
+    ['darwin', path.join('Umeda.app', 'Contents', 'MacOS', 'Umeda')],
+    ['linux', path.join(empty, 'Cindy')],
+  ]) {
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'apps/desktop/scripts/smoke-packaged.mjs'),
+      `--platform=${platform}`, '--arch=arm64', `--out-dir=${empty}`,
+    ], { encoding: 'utf8' });
+    assert.equal(result.status, 1, result.stderr);
+    assert.ok(result.stderr.includes(executable), result.stderr);
+  }
 });
 
 test('restart-desktop-remote.mjs BRAND_USER_DATA_DIR_NAME mirrors brandIdentity.userDataDirName', () => {

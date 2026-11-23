@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {prepareRuntime, verifyRuntime, treeIdentity} from './runtime-store.mjs';
+import packaging from '../../apps/desktop/packaging.json' with { type: 'json' };
 const receiptPath = root => path.join(root, 'apps/desktop/resources/personal-native.json');
 const digest = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 export function sdkSupported(version) {
@@ -83,7 +84,7 @@ export function prepareNativeCapabilities(root, {name = 'personal', region = 'gl
   run('/usr/libexec/PlistBuddy',['-c','Set :CFBundleName Cindy Personal',path.join(app,'Contents/Info.plist')]);
   // macOS prefers DisplayName over Name. Keep executable/helper and credential
   // identities intact; branding must be sealed before signing the app.
-  run('/usr/libexec/PlistBuddy',['-c','Set :CFBundleDisplayName Cindy',path.join(app,'Contents/Info.plist')]);
+  run('/usr/libexec/PlistBuddy',['-c',`Set :CFBundleDisplayName ${packaging.displayName}`,path.join(app,'Contents/Info.plist')]);
   run('/usr/libexec/PlistBuddy',['-c','Set :CFBundleIconFile cindy.icns',path.join(app,'Contents/Info.plist')]);
   // Import structured fields without replacing Electron's existing plist or signing a live app.
   execFileSync('python3', ['-c', 'import json,plistlib,sys; p=sys.argv[1]; d=plistlib.load(open(p,"rb")); d.update(json.load(sys.stdin)); plistlib.dump(d,open(p,"wb"))',
@@ -176,7 +177,7 @@ export function prepareStableNativeCapabilities(root, options = {}) {
   const names = execFileSync('git',['ls-files','-z','--','apps/desktop/native/agent-island'],{cwd:root,encoding:'utf8'}).split('\0').filter(Boolean);
   names.push('apps/desktop/resources/icon.icns');
   const toolchain = resolveNativeToolchain();
-  const inputs = {protocol:1, platform:process.platform, arch:process.arch, node:process.versions.node,
+  const inputs = {protocol:1, platform:process.platform, arch:process.arch, node:process.versions.node, displayName:packaging.displayName,
     electronBytes:treeIdentity(path.join(root,'node_modules/electron/dist/Electron.app')),
     electron:fs.readFileSync(path.join(root,'node_modules/electron/dist/version'),'utf8').trim(),
     developerDir:toolchain.env.DEVELOPER_DIR || execFileSync('xcode-select',['-p'],{encoding:'utf8'}).trim(), sdk:toolchain.sdk,

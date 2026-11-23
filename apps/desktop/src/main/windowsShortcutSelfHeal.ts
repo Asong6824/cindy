@@ -30,21 +30,21 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { app, shell } from 'electron';
 import { brandExecutableName } from '@cindy/maker-shared/brand-identity';
+import { desktopPackageName } from '../shared/desktopPackaging';
 import { CURRENT_APP_ID, CURRENT_CINDY_REGION } from '../shared/brandRegion.js';
 import { createLogger } from './logger';
 
 const log = createLogger('shortcutSelfHeal');
 
 /** 历代快捷方式名(不含扩展名),按出现顺序:最早的 exe 名 → 上一代品牌名。 */
-const LEGACY_SHORTCUT_BASENAMES = ['xdt-maker', 'XDMaker'] as const;
+const LEGACY_SHORTCUT_BASENAMES = ['xdt-maker', 'XDMaker', brandExecutableName(CURRENT_CINDY_REGION)] as const;
 
 /**
- * 重建目标快捷方式名 = 本区域 NSIS shortcutName(cn/global 'Cindy' /
- * dev 'CindyDev',与 forge.config 同源;2026-07-26 起 cn/global 同名,
- * 双装 .lnk 互抢已被 owner 接受)。仍从 brandExecutableName 派生而不用共享的
- * BRAND_NAME:dev 包必须写自己的 CindyDev.lnk,不能抢正式包的 Cindy.lnk。
+ * 重建目标快捷方式名与 Forge 共用 packaging.json:
+ * cn/global 为 Umeda，dev 为 UmedaDev。旧品牌只参与已归属快捷方式识别，
+ * AUMID 继续使用兼容身份；其它安装的 target 不匹配时一律不动。
  */
-const SHORTCUT_BASENAME = brandExecutableName(CURRENT_CINDY_REGION);
+const SHORTCUT_BASENAME = desktopPackageName(CURRENT_CINDY_REGION);
 
 /** 依赖注入面(规则 14:测试用内存假体直接调用,不起 Electron)。 */
 export interface ShortcutSelfHealDeps {

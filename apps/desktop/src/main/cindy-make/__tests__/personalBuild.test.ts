@@ -72,7 +72,7 @@ afterEach(async () => {
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
 });
 
-async function fixture() {
+async function fixture(product = 'umeda-desktop') {
   const userData = await temp();
   const source = makeSourceCheckoutPath(userData);
   const workingDir = makeTaskWorktreePath(userData, 'run');
@@ -143,7 +143,7 @@ async function fixture() {
     await writeFile(
       path.join(artifacts, 'build-info.json'),
       JSON.stringify({
-        product: 'cindy-desktop',
+        product,
         versionless: true,
         version: null,
         commitSha: baseline,
@@ -531,10 +531,17 @@ describe('personal source integration and packaging', () => {
     await expect(personalArtifactPath(h.userData, 'completion', previous)).resolves.toBeDefined();
   });
 
-  it.each([false, true])(
-    'retains the app from personal and cleans unpublished copies (cancel: %s)',
-    async (cancel) => {
-      const h = await fixture();
+  // Production retention must accept both old and renamed build manifests.
+  // Existing tests only produced cindy-desktop and missed rejection of the
+  // new manifest. Minimal input: a built unversioned app. Tier: unit.
+  it.each([
+    { cancel: false, product: 'umeda-desktop', appName: 'Umeda' },
+    { cancel: false, product: 'cindy-desktop', appName: 'Cindy' },
+    { cancel: true, product: 'umeda-desktop', appName: 'Umeda' },
+  ])(
+    'retains $product and cleans unpublished copies (cancel: $cancel)',
+    async ({ cancel, product, appName }) => {
+      const h = await fixture(product);
       h.task.profile = { userData: h.userData, appName: 'Cindy', region: 'global', passive: false };
       const id = '11111111-1111-4111-8111-111111111111';
       const retainedDirectory = versionStore.versionDirectory(h.userData, id);
@@ -543,12 +550,12 @@ describe('personal source integration and packaging', () => {
         'apps',
         'desktop',
         'out',
-        'Cindy-' + process.platform + '-' + process.arch,
+        appName + '-' + process.platform + '-' + process.arch,
       );
       vi.spyOn(versionStore, 'retainPersonalVersion').mockImplementation(async (input) => {
         expect(h.locked()).toBe(true);
         expect(input.sourceDirectory).toBe(
-          process.platform === 'darwin' ? path.join(packaged, 'Cindy.app') : packaged,
+          process.platform === 'darwin' ? path.join(packaged, appName + '.app') : packaged,
         );
         await mkdir(retainedDirectory, { recursive: true });
         await writeFile(path.join(retainedDirectory, 'pending.txt'), 'retained app');

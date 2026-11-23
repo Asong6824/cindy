@@ -1,5 +1,22 @@
 # 配置分层与 override 契约
 
+## 个人 Umeda 桌面打包名称（2026-11-23）
+
+`apps/desktop/packaging.json` 是个人分支的打包名称正本。Forge、产物归集和 smoke 共用
+该文件:正式包的 .app／Windows 可执行名／快捷方式为 `Umeda`，内部 dev 为 `UmedaDev`；安装包
+文件名前缀为 `umeda`，build-info 的 product 为 `umeda-desktop`。Mac 显示名与 Windows
+产品元数据同源；新建的个人原生 shell 也使用该显示名，已有签名 shell 不就地改写。
+
+按主人选择，本次仅统一名称，保留兼容身份。Desktop 的 package.json productName、
+按区域派生的包 ID／AUMID、userData、数据库文件前缀、凭证身份及协议均保持原值；
+它们不从打包展示名推导。Linux 的 Debian 包 ID、内部可执行文件名和托管安装合同也保留
+`Cindy`／`CindyDev`，Debian 包的应用菜单显示和本地安装包名使用 Umeda。内部 `@cindy/*`
+包名和手机现有 `app.umeda.cindy` 也不改。
+这不是存量数据或安装路径迁移，不移动、复制或删除个人资料。
+
+默认版本无关包仍为 `0.0.0`，沿用原有禁用应用热更新的行为。本次不修改更新器、
+官方 CDN 路径或发布配置；统一名称不表示已经建立 Umeda 的独立版本更新渠道。
+
 ## Umeda 资料库本地绑定（2026-11-20）
 
 个人无鉴权中转支持可选的 `userData/vault-sync.json`：

@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { expect, it, vi } from 'vitest';
-import { brandExecutableName } from '@cindy/maker-shared/brand-identity';
+import { desktopPackageName, desktopPackageBinaryName } from '../../../shared/desktopPackaging';
 import {
   personalVersionId,
   readPersonalVersion,
@@ -23,7 +23,10 @@ import { runSourceGit } from '../sourceGit';
 import type { runSourcePnpm } from '../sourcePnpm';
 
 async function fixture() {
-  const userData = await mkdtemp(path.join(os.tmpdir(), 'cindy-personal-git-'));
+  // The production boundary requires canonical worktree paths. macOS tmpdir
+  // can use /var while Git/realpath report /private/var; canonicalize the
+  // isolated fixture root before deriving any managed paths.
+  const userData = await realpath(await mkdtemp(path.join(os.tmpdir(), 'cindy-personal-git-')));
   const source = makeSourceCheckoutPath(userData);
   const workingDir = makeTaskWorktreePath(userData, 'run');
   const signal = AbortSignal.timeout(90_000);
@@ -95,7 +98,7 @@ async function fixture() {
       await writeFile(
         path.join(artifacts, 'build-info.json'),
         JSON.stringify({
-          product: 'cindy-desktop',
+          product: 'umeda-desktop',
           versionless: true,
           version: null,
           commitSha: candidate,
@@ -297,7 +300,7 @@ it('replaces the single personal application only after a successful build and r
       path.join(h.source, '.gitignore'),
       'apps/desktop/release/\napps/desktop/out/\n',
     );
-    const appName = brandExecutableName('global');
+    const appName = desktopPackageName('global');
     h.packageCommand.mockImplementation(async (...args) => {
       await h.pack(args[0], args[1], args[2]);
       const packaged = path.join(
@@ -309,7 +312,7 @@ it('replaces the single personal application only after a successful build and r
       );
       const bundle =
         process.platform === 'darwin' ? path.join(packaged, appName + '.app') : packaged;
-      const { executable, resources } = runnableBundlePaths(bundle, appName);
+      const { executable, resources } = runnableBundlePaths(bundle, desktopPackageBinaryName('global', process.platform));
       await mkdir(path.dirname(executable), { recursive: true });
       await mkdir(path.join(resources, 'drizzle'), { recursive: true });
       await writeFile(executable, 'fixture executable');

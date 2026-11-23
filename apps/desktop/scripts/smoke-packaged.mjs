@@ -35,14 +35,14 @@ const DESKTOP_ROOT = path.resolve(__dirname, '..');
 
 /**
  * electron-forge 打包产物基名默认值(out 目录 / exe / .app / linux 二进制同名)。
- * ⚠️ 值必须与 packages/maker-shared/src/brandIdentity.ts 的
- * BRAND_IDENTITY.executableName 及 ci/lib.mjs 的 PACKAGED_APP_NAME 一致
- * (本脚本刻意零外部依赖,不 import lib.mjs;一致性由
- * scripts/__tests__/brand-identity-sync.test.mjs 断言兜底)。
- * 区域化:产物基名按区域派生(cn/global 'Cindy' / dev 'CindyDev'),由调用方
+ * 与 Forge、ci/lib.mjs 共用 desktop/packaging.json,不从存储兼容身份派生。
+ * 区域化:产物基名按区域派生(cn/global Umeda / dev UmedaDev),由调用方
  * (ci/lib.mjs runSmokeTest)经 --app-name= 传入覆盖,本默认值服务 global / 手跑。
  */
-const PACKAGED_APP_NAME = 'Cindy';
+const PACKAGING = JSON.parse(
+  fs.readFileSync(path.join(DESKTOP_ROOT, 'packaging.json'), 'utf8'),
+);
+const PACKAGED_APP_NAME = PACKAGING.executableNameByRegion.global;
 
 // ── Arg parsing ───────────────────────────────────────────────────────────
 
@@ -58,11 +58,14 @@ function parseArgs() {
   const arch = out.arch || process.arch;
   const outDir = out['out-dir'] || null;
   const appName = out['app-name'] || PACKAGED_APP_NAME;
+  const region = appName === PACKAGING.executableNameByRegion.dev ? 'dev' : 'global';
+  const executableName = out['executable-name'] || (platform === 'linux'
+    ? PACKAGING.linuxExecutableNameByRegion[region] : appName);
   const pluginStorage = args.includes('--plugin-storage');
-  return { platform, arch, outDir, appName, pluginStorage };
+  return { platform, arch, outDir, appName, executableName, pluginStorage };
 }
 
-const { platform, arch, outDir, appName, pluginStorage } = parseArgs();
+const { platform, arch, outDir, appName, executableName, pluginStorage } = parseArgs();
 
 if (!['win32', 'darwin', 'linux'].includes(platform)) {
   console.error(`[smoke] ERROR: unsupported --platform=${platform}`);
@@ -110,7 +113,7 @@ function resolveExePath() {
     return exe;
   }
   // linux
-  const exe = path.join(baseDir, appName);
+  const exe = path.join(baseDir, executableName);
   if (!fs.existsSync(exe)) {
     console.error(`[smoke] ERROR: ${appName} binary not found at ${exe}`);
     process.exit(1);

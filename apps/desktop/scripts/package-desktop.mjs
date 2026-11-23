@@ -35,9 +35,9 @@
 //                                   该环境的机器打版本无关包时用它
 //
 // 产物: release/artifacts/<region>/<version|unversioned>/<platform-arch>/
-//   cindy-<version|unversioned>-Setup.exe / -<arch>.dmg /
+//   umeda-<version|unversioned>-Setup.exe / -<arch>.dmg /
 //              -<amd64|arm64>.deb                        安装包
-//   cindy-<version>-hotfix.zip                           热更包(仅有版本时)
+//   umeda-<version>-hotfix.zip                           热更包(仅有版本时)
 //   build-info.json                                      发布侧唯一输入(含 mcpAppsManual:
 //                                                        安装包内手册的 sha256/size,无则 null)
 // =============================================================================
@@ -539,7 +539,7 @@ async function main() {
   }
 
   console.log('='.repeat(60));
-  console.log(`==> Package Cindy desktop`);
+  console.log(`==> Package Umeda desktop`);
   console.log(`    platform: ${archs.map((a) => `${platform}-${a}`).join(' + ')}`);
   console.log(`    region:   ${region}`);
   console.log(`    version:  ${versionless ? `(版本无关,占位 ${version},不参与热更新)` : version}`);

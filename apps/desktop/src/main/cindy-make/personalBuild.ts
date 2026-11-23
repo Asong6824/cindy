@@ -5,6 +5,7 @@ import { createReadStream } from 'node:fs';
 import { copyFile, lstat, mkdir, mkdtemp, readFile, realpath, unlink } from 'node:fs/promises';
 import originalFs from 'original-fs';
 import { brandExecutableName } from '@cindy/maker-shared/brand-identity';
+import { desktopPackageName, desktopPackageBinaryName, DESKTOP_PACKAGE_PRODUCT } from '../../shared/desktopPackaging';
 import {
   retainPersonalVersion,
   publishPersonalVersion,
@@ -453,7 +454,7 @@ export async function buildCindyPersonal(
         ? info.files.find((file: { role?: string }) => file.role === 'installer')
         : undefined;
       if (
-        info.product !== 'cindy-desktop' ||
+        !['cindy-desktop', DESKTOP_PACKAGE_PRODUCT].includes(info.product) ||
         info.versionless !== true ||
         info.version !== null ||
         info.commitSha !== baseline ||
@@ -498,7 +499,10 @@ export async function buildCindyPersonal(
       };
       await personalArtifactPath(task.userData, task.completionId, artifact);
       if (task.profile) {
-        const appName = brandExecutableName(region);
+        // Old source checkouts still emit Cindy packages; do not reinterpret
+        // an existing build using the current host's package name.
+        const appName = info.product === DESKTOP_PACKAGE_PRODUCT
+          ? desktopPackageName(region) : brandExecutableName(region);
         const packaged = path.join(
           source,
           'apps',
@@ -510,7 +514,8 @@ export async function buildCindyPersonal(
           profile: task.profile,
           sourceDirectory:
             process.platform === 'darwin' ? path.join(packaged, appName + '.app') : packaged,
-          appName,
+          appName: info.product === DESKTOP_PACKAGE_PRODUCT
+            ? desktopPackageBinaryName(region, process.platform) : appName,
           title: task.title ?? '',
           commit: baseline,
           tree: candidateTree,
