@@ -28,6 +28,7 @@ import { ConversationSearchProvider } from '@/features/cc-agent/sidebar/conversa
 import { isSecondaryWindow } from '@/lib/secondaryWindow';
 import { CHROME_ACTIONS_GEOMETRY } from '@/components/layout/chromeActionsGeometry';
 import { SidebarTopNav } from './SidebarTopNav';
+import { KosPreviewNavEntry } from '@/features/kos/KosPreviewNavEntry';
 import { WorkNavEntry } from '@/features/work-management/WorkNavEntry';
 import { UpdateBanner } from './UpdateBanner';
 import { DatabaseSizeWarningBanner } from './DatabaseSizeWarningBanner';
@@ -253,6 +254,7 @@ export function Sidebar({
             )}
 
             <WorkNavEntry compact={isRail} />
+            <KosPreviewNavEntry compact={isRail} />
 
             {/* Upper: feature-injected content slot.
               The current Feature Layout injects either an expanded or collapsed

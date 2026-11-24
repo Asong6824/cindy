@@ -80,6 +80,11 @@ export const router = createHashRouter([
                 children: [
                   { index: true, element: <MainEntryRedirect /> },
                   {
+                    path: 'kos-preview',
+                    lazy: () => import('@/features/kos/KosPreviewPage').then(({ KosPreviewPage }) => ({ Component: KosPreviewPage })),
+                    HydrateFallback: EmptyRouteFallback,
+                  },
+                  {
                     path: 'work',
                     lazy: () => import('@/features/work-management/WorkPage').then(({ WorkPage }) => ({ Component: WorkPage })),
                     HydrateFallback: EmptyRouteFallback,

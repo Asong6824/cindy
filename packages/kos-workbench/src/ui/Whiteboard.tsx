@@ -27,10 +27,10 @@ const CardNode = memo(function CardNode({ data, selected }: NodeProps<CanvasNode
 });
 const nodeTypes = { card: CardNode };
 
-export function Whiteboard(props: { store: LibraryModel; vaultId: string; file: VaultSummary; files: VaultSummary[]; addFile: VaultSummary | null; added(): void; open(file: VaultSummary): void; notice(message: string): void; focusCard?: string }) {
+export function Whiteboard(props: { store: LibraryModel; vaultId: string; file: VaultSummary; files: VaultSummary[]; addFile: VaultSummary | null; added(): void; open(file: VaultSummary): void; notice(message: string): void; focusCard?: string; hideCardAi?: boolean }) {
   return <ReactFlowProvider><Canvas key={`${props.vaultId}:${props.file.path}`} {...props} /></ReactFlowProvider>;
 }
-function Canvas({ store, vaultId, file, files, addFile, added, open, notice, focusCard }: Parameters<typeof Whiteboard>[0]) {
+function Canvas({ store, vaultId, file, files, addFile, added, open, notice, focusCard, hideCardAi }: Parameters<typeof Whiteboard>[0]) {
   const repository = useMemo(() => new CardRepository(store, vaultId), [store, vaultId]);
   const [board, setBoard] = useState<Board | null>(null), [error, setError] = useState(false), [saving, setSaving] = useState(false), [saveFailed, setSaveFailed] = useState(false);
   const [nodes, setNodes] = useState<CanvasNode[]>([]), [selectedEdge, setSelectedEdge] = useState<string | null>(null);
@@ -166,8 +166,8 @@ function Canvas({ store, vaultId, file, files, addFile, added, open, notice, foc
       <button disabled={!undo.length} onClick={() => { const value = undo.at(-1)!; setRedo(previous => [...previous, current.current!]); setUndo(previous => previous.slice(0, -1)); commit(value, false); }}>{t('undo')}</button>
       <button disabled={!redo.length} onClick={() => { const value = redo.at(-1)!; setUndo(previous => [...previous, current.current!]); setRedo(previous => previous.slice(0, -1)); commit(value, false); }}>{t('redo')}</button>
       <button onClick={() => { void flush().catch(() => {}); }}>{t('save')}</button>
-      {(['summarize', 'compare', 'challenge'] as const).map(kind => <button key={kind} disabled={!canAct || actionBusy} onClick={() => void submitAction(kind)}>{t(kind === 'compare' ? 'aiCompare' : kind === 'challenge' ? 'aiChallenge' : 'aiSummarize')}</button>)}
-      {retryItem && <button disabled={actionBusy} onClick={() => void submitAction(undefined, retryItem.aiRequest)}>{t('retryAiSubmit')}</button>}
+      {!hideCardAi && (['summarize', 'compare', 'challenge'] as const).map(kind => <button key={kind} disabled={!canAct || actionBusy} onClick={() => void submitAction(kind)}>{t(kind === 'compare' ? 'aiCompare' : kind === 'challenge' ? 'aiChallenge' : 'aiSummarize')}</button>)}
+      {!hideCardAi && retryItem && <button disabled={actionBusy} onClick={() => void submitAction(undefined, retryItem.aiRequest)}>{t('retryAiSubmit')}</button>}
     </header>
     {selectedEdge && <label className="edge-label-editor">{t('relationLabel')}<input value={board.links.find(link => link.id === selectedEdge)?.label ?? ''} onChange={event => commit({ ...board, links: board.links.map(link => link.id === selectedEdge ? { ...link, label: event.target.value } : link) })} /></label>}
     <div ref={canvasRef} className="whiteboard-canvas" onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }} onDrop={event => {

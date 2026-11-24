@@ -1,5 +1,6 @@
 import { registerCompanionImport } from '../../bot-import/registration.js';
 import { registerTaskTagsIpc } from './taskTags';
+import { registerKosPreviewIpc } from '../../vault-sync/kosPreview';
 import { registerWorkManagementIpc } from '../../work-management/ipc';
 import { registerRoutineRemoteResources } from '../../routines/remote.js';
 import { registerRoutinesIpc } from '../../routines/service.js';
@@ -237,6 +238,7 @@ export function registerLocalDbIpc(opts: RegisterLocalDbIpcOpts = {}): void {
   registerProjectAliasesIpc();
   registerTaskTagsIpc();
   registerWorkManagementIpc();
+  registerKosPreviewIpc();
   registerRightSidebarTabsIpc();
   // Durable Subagent projection writes share the agent event path's FIFO, so a
   // reconciliation and an agent_task_update cannot both insert the first

@@ -1158,6 +1158,7 @@ type ElectronLocalDbSessionListUsageOptions = Omit<
 };
 
 interface ElectronAPI {
+  kosPreview: import('../shared/kosPreview').KosPreviewApi;
   workManagement: import('@cindy/maker-shared/work-management').WorkManagementApi;
   performanceTrace: import('../shared/performanceTrace').PerformanceTraceAPI;
   localAgent: import('../shared/localAgent').LocalAgentSettingsApi;

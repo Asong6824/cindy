@@ -445,6 +445,44 @@ describe('portable KOS workbench', () => {
     expect(data.local.get('fixture:pending')).toBe('{broken draft');
 
   });
+  // Unit: replacing the writer after a lost PUT response must not create a
+  // conflict copy of bytes the first writer already committed.
+  it('reconciles an accepted edit after the library writer restarts', async () => {
+    const data = fixture();
+    await data.initialize();
+    let lost = false;
+    let writes = 0;
+    const host: WorkbenchHost = {
+      async call<T>(operation: string, raw?: unknown): Promise<T> {
+        const request = raw as { method?: string; path?: string } | undefined;
+        const result = await data.host.call<T>(operation, raw);
+        if (operation === 'http' && request?.method === 'PUT' && request.path?.includes('/file?')) {
+          writes += 1;
+          if (!lost) {
+            lost = true;
+            throw new Error('lost receipt');
+          }
+        }
+        return result;
+      },
+    };
+    const before = new LibraryService(host);
+    await before.initialize();
+    await before.saveText('notes', 'takeover.md', '# Saved once', 0);
+    await before.refresh();
+    expect(lost).toBe(true);
+    expect(before.getSnapshot().pending).toHaveLength(1);
+    before.dispose();
+
+    const after = new LibraryService(host);
+    await after.initialize();
+    expect(after.getSnapshot().pending).toHaveLength(0);
+    expect(after.getSnapshot().conflicts).toEqual([]);
+    expect(after.files('notes').map(file => file.path)).toEqual(['takeover.md']);
+    expect(writes).toBe(2); // The retry is refused by CAS, then the existing head is read.
+    after.dispose();
+  });
+
   it('preserves the original and creates a readable conflict copy for a stale offline edit', async () => {
     const data = fixture(); await data.initialize(); await data.seed('note.md', '# Base');
     const store = new WorkbenchStore(data.host); await store.initialize(); const file = store.files('notes')[0];

@@ -69,3 +69,5 @@ export class LibraryClient implements LibraryModel {
   }
   dispose() { this.closed = true; this.detach(); this.views.clear(); }
 }
+
+export type { WorkbenchSnapshot } from './model';

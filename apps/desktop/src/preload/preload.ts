@@ -1,3 +1,4 @@
+import { KOS_PREVIEW_AVAILABLE, KOS_PREVIEW_COMMAND, KOS_PREVIEW_CHANGED, type KosPreviewApi } from '../shared/kosPreview';
 import { WORK_SYNC_STATUS_CHANNEL, WORK_SYNC_RESOLVE_CHANNEL, WORK_SYNC_CONFLICT_CHANNEL } from '@cindy/maker-shared/work-management';
 import { APP_PREFERENCE_REQUEST, APP_PREFERENCE_REPLY, APP_SETTINGS_CHANGED, type AppPreferenceControlBridge } from '../shared/appPreferenceControl.js';
 import type { VoiceConversationApi } from '../shared/voiceConversation';
@@ -1145,6 +1146,15 @@ const readMicrophonePermissionSnapshot = createMicrophonePermissionSnapshot();
 const voiceInputDataSnapshot = createVoiceInputDataSnapshot();
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  kosPreview: {
+    available: () => ipcRenderer.invoke(KOS_PREVIEW_AVAILABLE),
+    command: request => ipcRenderer.invoke(KOS_PREVIEW_COMMAND, request),
+    onChanged(listener) {
+      const receive = (_event: Electron.IpcRendererEvent, snapshot: Parameters<typeof listener>[0]) => listener(snapshot);
+      ipcRenderer.on(KOS_PREVIEW_CHANGED, receive);
+      return () => { ipcRenderer.removeListener(KOS_PREVIEW_CHANGED, receive); };
+    },
+  } satisfies KosPreviewApi,
   workManagement: {
     syncConflict: (requestId: string, owner: import('@cindy/maker-shared/work-management').WorkOwnerStamp) => ipcRenderer.invoke(WORK_SYNC_CONFLICT_CHANNEL, requestId, owner),
     syncStatus: (owner: import('@cindy/maker-shared/work-management').WorkOwnerStamp) => ipcRenderer.invoke(WORK_SYNC_STATUS_CHANNEL, owner),

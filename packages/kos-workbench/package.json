@@ -7,6 +7,13 @@
   "description": "Portable KOS workbench: deterministic views and reading, independent of Obsidian and Agent runtimes.",
   "exports": {
     "./core": "./src/core/index.ts",
+    "./library-client": "./src/library/client.ts",
+    "./library-rpc": "./src/library/rpc.ts",
+    "./library-storage": "./src/library/storage.ts",
+    "./library-service": "./src/library/service.ts",
+    "./qa-fixture": "./scripts/fixture.ts",
+    "./desktop-view": "./src/desktop.ts",
+    "./theme.css": "./src/ui/theme.css",
     "./cards/provenance": "./src/cards/provenance.ts"
   },
   "scripts": {

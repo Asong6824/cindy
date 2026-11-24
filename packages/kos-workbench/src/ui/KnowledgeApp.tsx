@@ -12,7 +12,7 @@ import { LibraryFiles } from './LibraryFiles';
 import { VersionHistory } from './VersionHistory';
 
 type View = 'whiteboards' | 'cardLibrary' | 'journal' | 'tagsView' | 'reviewQueue' | 'files';
-export function KnowledgeApp({ store }: { store: LibraryModel }) {
+export function KnowledgeApp({ store, hostManaged = window.__UMEDA_BOOT__?.hostLibrary, hideCardAi }: { store: LibraryModel; hostManaged?: boolean; hideCardAi?: boolean }) {
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const [vaultId, setVaultId] = useState(''), [view, setView] = useState<View>('whiteboards');
   const [boardReady, setBoardReady] = useState(false);
@@ -31,12 +31,12 @@ export function KnowledgeApp({ store }: { store: LibraryModel }) {
   const boardLock = useRef(false);
   useEffect(() => {
     void store.initialize().catch(() => setNotice(t('readError')));
-    if (window.__UMEDA_BOOT__?.hostLibrary) return;
+    if (hostManaged) return;
     const resume = () => { if (document.visibilityState !== 'hidden') void store.refresh().catch(() => setNotice(t('readError'))); };
     document.addEventListener('visibilitychange', resume); window.addEventListener('umeda-resume', resume);
     const timer = setInterval(resume, 60_000);
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', resume); window.removeEventListener('umeda-resume', resume); };
-  }, [store]);
+  }, [store, hostManaged]);
   useEffect(() => { if (!vaultId && snapshot.catalog.vaults.length) setVaultId(snapshot.catalog.vaults[0].id); }, [snapshot.catalog.vaults, vaultId]);
   useEffect(() => {
     let alive = true; setBoardReady(false); setSelected(null); setBoardPath(''); setAddFile(null); setCompose(false); setFocusCard(undefined);
@@ -89,7 +89,7 @@ export function KnowledgeApp({ store }: { store: LibraryModel }) {
       {snapshot.error && <div className="error-notice" role="alert">{snapshot.error}</div>}
       {!snapshot.loading && !snapshot.catalog.vaults.length ? <div className="empty"><h1>{t('noVault')}</h1><p>{t('noVaultHint')}</p></div> : <>
       {view === 'whiteboards' ? <div className="whiteboard-workspace">
-        {activeBoard ? <Whiteboard key={`${vaultId}:${activeBoard.path}`} store={store} vaultId={vaultId} file={activeBoard} files={files} addFile={addFile} added={() => setAddFile(null)} open={open} notice={setNotice} focusCard={focusCard} /> : <div className="empty"><h1>{t('selectBoard')}</h1><button onClick={() => setCreateBoard(true)}>{t('newBoard')}</button></div>}
+        {activeBoard ? <Whiteboard key={`${vaultId}:${activeBoard.path}`} store={store} vaultId={vaultId} file={activeBoard} files={files} addFile={addFile} added={() => setAddFile(null)} open={open} notice={setNotice} focusCard={focusCard} hideCardAi={hideCardAi} /> : <div className="empty"><h1>{t('selectBoard')}</h1><button onClick={() => setCreateBoard(true)}>{t('newBoard')}</button></div>}
         <aside className="card-shelf"><header><strong>{t('cardLibrary')}</strong><button onClick={() => setCompose(true)}>{t('newCard')}</button></header><input aria-label={t('searchCards')} placeholder={t('searchCards')} value={query} onChange={event => setQuery(event.target.value)} /><CardList cards={visibleCards} open={open} add={activeBoard ? file => setAddFile(file) : undefined} /></aside>
       </div> : view === 'files' ? <LibraryFiles store={store} vaultId={vaultId} files={files} onOpen={open} onCreate={() => setCompose(true)} /> : <section className="knowledge-library"><header><div><h1>{t(view)}</h1>{view === 'journal' && <p className="muted">{t('journalHint')}</p>}</div><button onClick={() => setCompose(true)}>{t('newCard')}</button></header>
         {(compose || view === 'journal') && <QuickNote key={vaultId} store={store} vaultId={vaultId} saved={file => { setCompose(false); open(file); }} notice={setNotice} />}

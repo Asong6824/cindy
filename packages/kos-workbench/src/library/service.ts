@@ -434,6 +434,16 @@ export class LibraryService {
           text,
           { 'x-vault-base-revision': String(base), 'content-type': 'text/plain; charset=utf-8' },
         );
+      const findAccepted = async (path: string, text: string, baseRevision: number): Promise<VaultFile | undefined> => {
+        const accepted = await this.http<VaultFile>(
+          `/api/vaults/${edit.vaultId}/stat?path=${encodeURIComponent(path)}`,
+        ).catch(error => {
+          if ((error as { status?: number }).status === 404) return undefined;
+          throw error;
+        });
+        return accepted?.path === path && !accepted.deleted && accepted.revision > baseRevision
+          && accepted.hash === digest(encodeText(text)) ? accepted : undefined;
+      };
       try {
         const reading =
           edit.path.startsWith('90_系统/umeda/reading/') && edit.path.endsWith('.json');
@@ -467,6 +477,10 @@ export class LibraryService {
                   });
                 }
                 text = merged;
+                if (head.hash === digest(encodeText(text))) {
+                  file = head;
+                  break;
+                }
               }
             }
             file = await write(edit.path, revision);
@@ -474,9 +488,18 @@ export class LibraryService {
           } catch (error) {
             if ((error as { status?: number }).status !== 409) throw error;
             if (reading && !incompatible && attempt < 2) continue;
+            if (!reading) {
+              file = await findAccepted(edit.path, text, revision);
+              if (file) break;
+            }
             const extension = /\.[^/.]+$/.exec(edit.path)?.[0] ?? '';
             const conflict = `${edit.path.slice(0, extension ? -extension.length : undefined)}.sync-conflict-${edit.id}${extension}`;
-            file = await write(conflict, 0);
+            file = await write(conflict, 0).catch(async conflictError => {
+              if ((conflictError as { status?: number }).status !== 409) throw conflictError;
+              const accepted = await findAccepted(conflict, text, 0);
+              if (!accepted) throw conflictError;
+              return accepted;
+            });
             conflicted = true;
             this.publish({ conflicts: [...this.snapshot.conflicts, conflict] });
             break;

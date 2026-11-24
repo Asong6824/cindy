@@ -1,9 +1,16 @@
 import type * as Readers from './runtime';
 declare global { interface Window { UmedaReaders?: typeof Readers } }
+let hostReaders: (() => Promise<typeof Readers>) | undefined;
+
+export function setHostReaderLoader(load: () => Promise<typeof Readers>) {
+  hostReaders = load;
+}
+
 let loading: Promise<typeof Readers> | undefined;
 
 /** Embedded resources stay offline-capable; heavy reader code is compiled only when used. */
 export function loadReaders(): Promise<typeof Readers> {
+  if (hostReaders) return hostReaders();
   if (window.UmedaReaders) return Promise.resolve(window.UmedaReaders);
   return loading ??= new Promise((resolve, reject) => {
     const script = document.createElement('script');

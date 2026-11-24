@@ -1,3 +1,5 @@
+/// <reference path="../browser.d.ts" />
+
 export { PdfReaderAdapter } from './adapters/pdf-adapter';
 export { EpubReaderAdapter } from './adapters/epub-adapter';
 export { extractBookText } from './extract';
