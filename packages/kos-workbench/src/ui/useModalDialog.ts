@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 
 /** Keep keyboard navigation inside the current editor, and restore the opener afterward. */
-export function useModalDialog(close: () => Promise<void>) {
+export function useModalDialog(close: () => Promise<void>, enabled = true) {
   const element = useRef<HTMLElement>(null), latest = useRef(close); latest.current = close;
   useEffect(() => {
+    if (!enabled) return;
     const opener = document.activeElement as HTMLElement | null;
     const focusable = () => [...(element.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex="0"]') ?? [])].filter(node => node.getClientRects().length > 0);
     focusable()[0]?.focus();
@@ -17,6 +18,6 @@ export function useModalDialog(close: () => Promise<void>) {
     };
     document.addEventListener('keydown', keydown, true);
     return () => { document.removeEventListener('keydown', keydown, true); if (opener?.isConnected) opener.focus(); };
-  }, []);
+  }, [enabled]);
   return element;
 }

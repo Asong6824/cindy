@@ -14,7 +14,7 @@ const h = vi.hoisted(() => ({
   props: {} as Record<string, any>,
   onBack: undefined as undefined | (() => void),
   hasHistory: false,
-  back: vi.fn(), replace: vi.fn(), inject: vi.fn(), storage: new Map<string, string>(),
+  back: vi.fn(), push: vi.fn(), replace: vi.fn(), inject: vi.fn(), storage: new Map<string, string>(),
   reload: vi.fn(), library: null as null | { call: (input: unknown) => Promise<unknown>; service: { subscribe: (listener: () => void) => () => void } },
 }));
 vi.mock('react-native', () => ({
@@ -33,7 +33,7 @@ vi.mock('react-native-webview', async () => {
 });
 vi.mock('expo-router', () => ({
   Stack: { Screen: () => null },
-  useRouter: () => ({ canGoBack: () => h.hasHistory, back: h.back, replace: h.replace }),
+  useRouter: () => ({ canGoBack: () => h.hasHistory, back: h.back, push: h.push, replace: h.replace }),
 }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'zh-CN' } }) }));
 vi.mock('@/platform/chrome/SimpleStackHeader', () => ({ SimpleStackHeader: ({ onBack }: { onBack: () => void }) => { h.onBack = onBack; return null; } }));
@@ -59,7 +59,7 @@ import WorkbenchScreen from '@/vault/WorkbenchScreen';
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let root: Root;
 beforeEach(async () => {
-  h.hasHistory = false; h.back.mockClear(); h.replace.mockClear(); h.inject.mockClear(); h.storage.clear();
+  h.push.mockClear(); h.hasHistory = false; h.back.mockClear(); h.replace.mockClear(); h.inject.mockClear(); h.storage.clear();
   h.library = null; h.reload.mockClear();
   h.route = { authMode: 'none', baseUrl: 'https://relay.invalid', relayId: 'relay' };
   root = createRoot(document.createElement('div'));
@@ -113,4 +113,15 @@ it('passes exact Markdown through the native HTTP reply and discards an old-rout
   h.route = { authMode: 'none', baseUrl: 'https://different.invalid', relayId: 'other' };
   await act(async () => release(Response.json({ vaults: [] })));
   expect(h.inject).not.toHaveBeenCalled();
+});
+
+// Unit: a whiteboard action prepares the existing task composer; it must not start
+// a paid model request, choose a device, or submit invalid/oversized content.
+it('hands selected knowledge to the normal task composer after acknowledging the bridge', async () => {
+  await message('cardAi', { requestId: 'whiteboard-action', title: 'Summary', prompt: 'Summarize my selected notes' });
+  expect(h.inject).toHaveBeenLastCalledWith(expect.stringContaining('"disposition":"draft"'));
+  expect(h.push).toHaveBeenCalledWith({ pathname: '/sessions/new', params: { draft: 'Summarize my selected notes' } });
+  h.push.mockClear();
+  await message('cardAi', { requestId: '../invalid', title: 'Bad', prompt: 'Do not send' });
+  expect(h.push).not.toHaveBeenCalled();
 });

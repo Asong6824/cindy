@@ -5,6 +5,9 @@
   "sourceLocale": "en",
   "punctuationExempt": ["desktop:settings.help.qnaFeedbackBodyTemplate"],
   "terms": [
+    {"id":"kos-card","status":"proposed","en":"Card","translations":{"zh-CN":"卡片","zh-TW":"卡片"},"checkCase":false,"note":"个人 KOS 知识载体的统一身份；正文可以为笔记、原始资料或带定位的摘录，与普通 UI 卡片容器分开。"},
+    {"id":"kos-whiteboard","status":"proposed","en":"Whiteboard","translations":{"zh-CN":"白板","zh-TW":"白板"},"checkCase":false,"note":"个人 KOS 的思考空间，引用卡片并保存布局与关系，不拥有卡片正文。"},
+    {"id":"kos-card-library","status":"proposed","en":"Card Library","translations":{"zh-CN":"卡片库","zh-TW":"卡片庫"},"checkCase":false,"note":"个人 KOS 所有知识卡片的统一浏览入口，不指工作管理对象。"},
     {"id":"umeda-work-management","status":"proposed","en":"Work","translations":{"zh-CN":"工作管理","zh-TW":"工作管理","ja":"仕事の管理","ko":"업무 관리"},"checkCase":false,"note":"个人 Umeda 的应用级目标、项目与待办入口；不指代码目录，不替换 Cindy 执行任务列表。"},
     {"id":"umeda-business-todo","status":"proposed","en":"To-do","translations":{"zh-CN":"待办","zh-TW":"待辦","ja":"やること","ko":"할 일"},"checkCase":false,"note":"Umeda 工作管理中的业务任务，承接旧 KOS task；与 Agent 执行任务 Session 分开，可以由人完成或关联多段执行。"},
     {"id":"umeda-kos-workbench","status":"proposed","en":"KOS workbench","translations":{"zh-CN":"KOS 工作台","zh-TW":"KOS 工作台"},"checkCase":false,"note":"Umeda 内的个人资料、目标、行动与阅读看板；不指伙伴近况浮层，也不代表 Agent 任务或执行链路。KOS task 对象在此界面称行动事项，避免与 Cindy session 的任务混淆。"},

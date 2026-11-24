@@ -14,6 +14,7 @@ export class MarkdownReaderAdapter implements ReaderAdapter {
     const html = DOMPurify.sanitize(await marked.parse(markdown), { FORBID_TAGS: ['script', 'iframe', 'object', 'form', 'style'], FORBID_ATTR: ['style'], ALLOW_DATA_ATTR: false });
     let annotations = input.annotations ?? [];
     let closed = false;
+    let pendingAnnotationRender = false;
     const imageUrls = new Map<string, Promise<string | null>>();
     const render = () => {
       const template = document.createElement('template'); template.innerHTML = html;
@@ -47,7 +48,14 @@ export class MarkdownReaderAdapter implements ReaderAdapter {
       const link = (event.target as Element).closest('a'); if (!link) return;
       event.preventDefault(); this.onLink(link.getAttribute('href') ?? '');
     };
-    const selection = () => { const selected = selectionWithin(input.container, 'markdown', ''); input.onSelection(selected ? { ...selected, anchor: { format: 'markdown', quote: selected.text } } : null); };
+    const selection = () => {
+      const selected = selectionWithin(input.container, 'markdown', '');
+      input.onSelection(selected ? { ...selected, anchor: { format: 'markdown', quote: selected.text } } : null);
+      if (!selected && pendingAnnotationRender && !closed) {
+        pendingAnnotationRender = false;
+        const top = scroller?.scrollTop ?? 0; render(); if (scroller) scroller.scrollTop = top;
+      }
+    };
     const scroller = input.container.parentElement;
     const scroll = () => emit();
     input.container.addEventListener('click', click); document.addEventListener('selectionchange', selection); scroller?.addEventListener('scroll', scroll, { passive: true });
@@ -81,7 +89,13 @@ export class MarkdownReaderAdapter implements ReaderAdapter {
       },
       search: async (query: string) => readerSearchMatches(input.container.innerText, query, 'markdown', '').map((match, index) => ({ ...match, location: `search:${index}:${encodeURIComponent(query)}` })),
       getContext: async () => ({ text: readerContextText(input.container.innerText), location: 'markdown', positionLabel: '' }),
-      setAnnotations: async (next: ReaderAnnotation[]) => { const top = scroller?.scrollTop ?? 0; annotations = next; render(); if (scroller) scroller.scrollTop = top; },
+      setAnnotations: async (next: ReaderAnnotation[]) => {
+        annotations = next;
+        // A late reading-record refresh must not erase a live excerpt selection.
+        if (selectionWithin(input.container, 'markdown', '')) { pendingAnnotationRender = true; return; }
+        pendingAnnotationRender = false;
+        const top = scroller?.scrollTop ?? 0; render(); if (scroller) scroller.scrollTop = top;
+      },
       close: () => { closed = true; for (const value of imageUrls.values()) void value.then(url => { if (url) URL.revokeObjectURL(url); }); document.removeEventListener('selectionchange', selection); input.container.removeEventListener('click', click); scroller?.removeEventListener('scroll', scroll); input.container.replaceChildren(); },
     };
   }

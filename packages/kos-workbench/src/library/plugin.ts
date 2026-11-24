@@ -4,8 +4,10 @@ import { localValue } from '../localStorage';
 import type { HttpReply } from './ports';
 import { createLibraryStorage, LIBRARY_SCHEMA_2, LIBRARY_SCHEMA_3, contentHash, base64 } from './storage';
 import { fromBase64 } from './encoding';
+import { submitPluginCardAction, type PluginCardTasks } from '../cards/actions';
 
 declare const cindy: {
+  tasks?: PluginCardTasks;
   library(input: Record<string, unknown>): Promise<{ ok: boolean; rows?: any[]; content?: string; sha256?: string; errorCode?: string; message?: string }>;
   fetch(input: Record<string, unknown>): Promise<{ ok: boolean; status?: number; body?: string; truncated?: boolean }>;
   onHostMessage(listener: () => void): void;
@@ -72,10 +74,15 @@ service.subscribe(() => channel.postMessage({ event: 'library-state', snapshot: 
 const runner = runLibrary(service, () => true);
 channel.onmessage = event => {
   const message = event.data;
-  if (!message || typeof message.id !== 'string' || message.id.length > 160 || message.operation !== 'library') return;
+  if (!message || typeof message.id !== 'string' || message.id.length > 160 || !['library', 'cardAi'].includes(message.operation)) return;
   let request = requests.get(message.id);
   if (!request) {
-    request = dispatchLibrary(service, message.payload).then(result => ({ id: message.id, result }), error => ({ id: message.id, error: error instanceof Error && error.message === 'LIBRARY_OFFLINE_SIZE_LIMIT' ? error.message : '资料库操作暂时无法完成，本机内容已保留。', status: (error as { status?: number })?.status }));
+    const execute = message.operation === 'cardAi'
+      ? cindy.tasks ? submitPluginCardAction(cindy.tasks, message.payload) : Promise.reject(new Error('CARD_AI_UNAVAILABLE'))
+      : dispatchLibrary(service, message.payload);
+    request = execute.then(result => ({ id: message.id, result }), error => ({ id: message.id,
+      error: message.operation === 'cardAi' ? 'AI 任务未能确认提交，请检查插件任务权限与模型连接；结果卡的位置已保留，请勿重复新建。'
+        : error instanceof Error && error.message === 'LIBRARY_OFFLINE_SIZE_LIMIT' ? error.message : '资料库操作暂时无法完成，本机内容已保留。', status: (error as { status?: number })?.status }));
     requests.set(message.id, request);
     if (requests.size > 256) requests.delete(requests.keys().next().value!);
   }

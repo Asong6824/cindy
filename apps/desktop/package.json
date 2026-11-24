@@ -63,6 +63,7 @@
     "@cindy/gitlab-client": "workspace:*",
     "@cindy/heartbeat-client": "workspace:*",
     "@cindy/im": "workspace:*",
+    "@cindy/kos-workbench": "workspace:*",
     "@cindy/maker-cc-manager": "workspace:*",
     "@cindy/maker-core": "workspace:*",
     "@cindy/maker-pi-manager": "workspace:*",

@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { App } from './ui/App';
+import { KnowledgeApp } from './ui/KnowledgeApp';
 import { createHost, flushBeforeLeave } from './host';
 import { WorkbenchStore } from './store';
 import { LibraryClient } from './library/client';
@@ -21,7 +21,7 @@ const store = boot?.hostLibrary ? new LibraryClient(host, listener => {
   return () => window.removeEventListener('umeda-library-state', receive);
 }) : new WorkbenchStore(host);
 const root = createRoot(document.getElementById('root')!);
-root.render(<App store={store} />);
+root.render(<KnowledgeApp store={store} />);
 window.addEventListener('beforeunload', () => { root.unmount(); store.dispose(); });
 
 window.umedaWorkbenchClose = async () => {

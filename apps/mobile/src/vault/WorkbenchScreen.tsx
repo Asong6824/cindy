@@ -15,6 +15,7 @@ import { SimpleStackHeader } from '@/platform/chrome/SimpleStackHeader';
 import { useTheme } from '@/theme';
 import { Text } from '@/components/AppText';
 import { KOS_WORKBENCH_HTML } from '../../../../packages/kos-workbench/generated/mobile';
+import { validCardAiRequest } from '../../../../packages/kos-workbench/src/cards/actions';
 
 /** The embedded UI only receives a scoped HTTP and storage port, never filesystem or credentials. */
 export default function WorkbenchScreen() {
@@ -54,10 +55,17 @@ export default function WorkbenchScreen() {
       if (!valid() || typeof id !== 'string' || id.length > 160 || !route || route.authMode !== 'none') throw new Error('unavailable');
       const payload = message.payload ?? {};
       let result: unknown;
+      let taskDraft: string | undefined;
       if (message.operation === 'library') {
         const library = mobileLibrary();
         if (!library) throw new Error('unavailable');
         result = await library.call(payload);
+      }
+      else if (message.operation === 'cardAi') {
+        if (!validCardAiRequest(payload)) throw new Error('invalid');
+        // The normal task composer owns device/model selection and explicit sending.
+        taskDraft = payload.prompt;
+        result = { disposition: 'draft' };
       }
       else if (message.operation === 'info') result = { namespace: scope, platform: 'mobile' };
       else if (['get', 'set', 'remove'].includes(message.operation)) {
@@ -91,6 +99,7 @@ export default function WorkbenchScreen() {
       } else if (message.operation === 'navigateHome') { goHome(); return; }
       else throw new Error('invalid');
       if (valid()) webview.current?.injectJavaScript(workbenchReplyScript({ id, result }));
+      if (taskDraft && valid()) router.push({ pathname: '/sessions/new', params: { draft: taskDraft } });
     } catch (error) {
       const status = (error as { status?: unknown })?.status;
       const message = error instanceof Error && error.message === 'LIBRARY_OFFLINE_SIZE_LIMIT' ? error.message : t('files.vault.readError');

@@ -1,8 +1,15 @@
 # Portable KOS workbench
 
+2026-11-24：共享界面入口开始采用卡片库与白板。新增笔记、带来源的摘录、白板布局沿
+既有 LibraryService 和 Vault 文件协议保存／同步；不迁移旧资料或工作管理数据。
+0.5.0 补齐白板图片／PDF 页预览、分区整体移动、选卡片交给 AI 总结／比较／找矛盾，以及
+AI 修改与已认可原文的对照和取舍。Desktop 接普通执行任务，手机先填入普通执行任务草稿。
+产品决定、数据格式、审核范围和未完成项见[卡片与白板实现范围](../../docs/kos-cards-and-whiteboards.md)。
+下文六区工作台说明属于保留的旧实现，不代表新默认首页。
+
 KOS 的前端与基础能力，供 Umeda Desktop 插件和 iOS 内嵌页共用。对象解析与指标从
 KOS Framework 迁移，出处与许可见 [UPSTREAM.md](UPSTREAM.md)。没有 Obsidian、DSH、
-Agent 执行或系统提示词依赖。
+独立 Agent 执行器或系统提示词依赖；白板 AI 动作调用宿主公开的普通执行任务能力。
 
 长期方向是 React 富交互界面与独立客户端资料服务协作，继续使用社区组件，不预设全量
 Swift 重写。0.2.0 源码已将缓存／队列迁到宿主 `LibraryService`，界面通过 `LibraryClient`
@@ -69,8 +76,9 @@ node packages/kos-workbench/prepare-plugin.mjs --relay-url=https://YOUR-RELAY.ex
 `build` 生成忽略的 `dist/` 及提交入库的 `generated/mobile.ts`。后者是 iOS 内嵌 HTML，
 只含程序与开源许可，不含用户内容或端点。修改前端后必须重新 build，再构建 iOS。
 `prepare-plugin` 调用本仓真实 Forge `packGhostDir` 校验器，产出 `.cindy`；不安装、不发布。
-插件宿主能力以当前工作树基线 `f8c444df6b755653ed916b9a717eb65b88300e46` 的公开契约验证，
-未修改插件基座。当前环境未连接 Forge MCP，实际安装仍走 Desktop 既有文件安装与权限确认。
+插件宿主能力按当前仓库公开契约验证，未修改插件基座。0.5.0 已通过 Forge MCP 校验打包；
+未安装，运行中客户端的版本／源码对应关系尚未确认。实际安装仍走 Desktop 既有文件
+安装与权限确认；示例端点校验包不能代替配置了实际资料服务的正式包。
 Desktop CSP 禁止内联启动脚本，宿主模式由随包 `main.tsx` 识别协议初始化；不能靠 HTML
 内联设置启动变量。预览也禁止内联脚本，实际 Mac 插件另做宿主验收。
 插件网络配置只进入本机生成的 `dist/`，不能提交个人端点或主机配置。
@@ -84,6 +92,7 @@ Desktop CSP 禁止内联启动脚本，宿主模式由随包 `main.tsx` 识别�
 PORT=55482 pnpm --filter @cindy/kos-workbench exec tsx scripts/preview.ts
 # 在另一个终端运行；输出截图位于系统临时目录，也可设置 KOS_QA_OUTPUT。
 node packages/kos-workbench/scripts/browser-smoke.mjs
+node packages/kos-workbench/scripts/whiteboard-smoke.mjs
 node packages/kos-workbench/scripts/library-storage-smoke.mjs
 ```
 
@@ -114,7 +123,9 @@ SQLite smoke 用生产手机适配器的 SQL 和真实 Node SQLite 验证旧记�
 空间页只报告本版已登记的内容对象并按哈希去重，不自动清理；旧数据库、原目录、未登记或
 失败遗留的物理文件不在此统计中，不将其当作系统总占用。
 界面已有中文与英文，其他语言暂回退英文。
-Agent 规划、研究、自动提炼／综述、执行与结果质量优化，以及旧 Obsidian 插件专属功能不在本阶段。
+自主规划、自动整库提炼、模型结果质量优化，以及旧 Obsidian 插件专属功能不在本阶段。
+白板 AI 动作只提交主人明确选中的文本来源，不自动遍历整库；真实模型与插件安装权限流程
+尚需运行环境验收，合成端到端检查不能替代它们。
 
 ## 同步提速（0.1.1）
 

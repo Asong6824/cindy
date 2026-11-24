@@ -16,8 +16,163 @@ import { LibraryClient } from '../library/client';
 import { dispatchLibrary } from '../library/rpc';
 import { readerIdentity, restoreReaderContext } from '../reader/identity';
 import { resolveReference } from '../documents';
+import { CardRepository } from '../cards/repository';
+import { cardRef, cardsFromFiles, resolveCard, needsReview, parseWhiteboard } from '../cards/model';
+import { movePlacements, selectedCards } from '../cards/geometry';
+import { prepareCardAiAction, submitPluginCardAction } from '../cards/actions';
+import { stampAgentCard } from '../cards/provenance';
 
 describe('portable KOS workbench', () => {
+  // Unit: section movement must move contained cards once, keep outside cards fixed,
+  // and persist through the real board repository. Existing tests only move flat cards.
+  it('moves a section with its contained cards and reopens the same grouped geometry', async () => {
+    const data = fixture(); await data.initialize(); const store = new LibraryService(data.host); await store.initialize();
+    const repository = new CardRepository(store, 'notes'), file = await repository.createBoard('Group');
+    const board = { version: 1 as const, items: [
+      { id: 'group', kind: 'section' as const, x: 0, y: 0, width: 600, height: 500 },
+      { id: 'inside', kind: 'card' as const, x: 50, y: 80, width: 280, height: 240, card: { id: 'path:inside.md', path: 'inside.md' } },
+      { id: 'outside', kind: 'card' as const, x: 900, y: 80, width: 280, height: 240, card: { id: 'path:outside.md', path: 'outside.md' } },
+    ], links: [] };
+    expect(selectedCards(board, ['group']).map(item => item.id)).toEqual(['inside']);
+    const moved = movePlacements(board, [{ id: 'group', x: 100, y: 200 }]);
+    await repository.saveBoard(file, moved);
+    const saved = await repository.readBoard(store.files('notes').find(item => item.path === file.path)!);
+    expect(saved.items.find(item => item.id === 'inside')).toMatchObject({ x: 150, y: 280 });
+    expect(saved.items.find(item => item.id === 'outside')).toMatchObject({ x: 900, y: 80 });
+    const explicitlyMoved = movePlacements(board, [{ id: 'group', x: 100, y: 200 }, { id: 'inside', x: 150, y: 280 }]);
+    expect(explicitlyMoved.items.find(item => item.id === 'inside')).toMatchObject({ x: 150, y: 280 });
+    store.dispose();
+  });
+  // Unit: a later AI draft must not replace the accepted snapshot or self-approve;
+  // accept/keep operations must survive normal saves. Prior review tests only hash one body.
+  it('keeps the accepted body while reviewing an AI revision and can keep or accept the revision', async () => {
+    const data = fixture(); await data.initialize(); const store = new LibraryService(data.host); await store.initialize();
+    const repository = new CardRepository(store, 'notes'), file = await repository.createNote('Accepted', 'Original accepted idea', { generated_by: 'ai' });
+    const accepted = await repository.review(file, await repository.readCurrentText(file));
+    const firstSnapshot = parseMetadata(splitMarkdown(accepted).frontmatter).kos_reviewed_body;
+    const proposed = stampAgentCard(file.path, patchMarkdown(accepted, {}, 'Proposed new idea'), accepted);
+    let current = store.files('notes').find(item => item.path === file.path)!;
+    await store.saveText('notes', file.path, proposed, current.revision);
+    expect(needsReview(proposed)).toBe(true);
+    expect(splitMarkdown((await repository.reviewBase(proposed))!).body).toContain('Original accepted idea');
+    current = store.files('notes').find(item => item.path === file.path)!;
+    const kept = await repository.keepAccepted(current, proposed);
+    expect(needsReview(kept)).toBe(false); expect(splitMarkdown(kept).body).toContain('Original accepted idea');
+    current = store.files('notes').find(item => item.path === file.path)!;
+    const next = await repository.review(current, proposed);
+    expect(needsReview(next)).toBe(false);
+    expect(splitMarkdown((await repository.reviewBase(next))!).body).toBe('Proposed new idea');
+    expect(store.files('notes').some(item => item.path === firstSnapshot)).toBe(true);
+    store.dispose();
+  });
+  // Unit: only selected notes leave the view; public task calls use stable keys and
+  // inherit host execution settings. Oversized bodies become exact source references.
+  it('prepares explicit card context and submits it through ordinary task APIs', async () => {
+    const data = fixture(); await data.initialize(); const store = new LibraryService(data.host); await store.initialize();
+    const repository = new CardRepository(store, 'notes'), chosen = await repository.createNote('Chosen', 'chosen-body'), other = await repository.createNote('Other', 'must-not-send');
+    const board = { version: 1 as const, items: [chosen, other].map((file, index) => ({ id: `p${index}`, kind: 'card' as const, x: index * 400, y: 0, width: 280, height: 240, card: cardRef(file) })), links: [] };
+    const prepared = await prepareCardAiAction(store, 'notes', board, ['p0'], 'summarize', 'stable-request', 'Summary');
+    expect(prepared.request.prompt).toContain('chosen-body'); expect(prepared.request.prompt).not.toContain('must-not-send');
+    expect(prepared.request.prompt).toContain(JSON.stringify(cardRef(chosen).id));
+    const calls: unknown[] = [];
+    const tasks = { capabilities: async () => ({ operations: ['create', 'send'] }), create: async (input: unknown) => { calls.push(input); return { taskId: 'task', revision: 4 }; }, send: async (input: unknown) => { calls.push(input); return { runId: 'run' }; } };
+    expect(await submitPluginCardAction(tasks, prepared.request)).toMatchObject({ taskId: 'task', runId: 'run', disposition: 'submitted' });
+    expect(calls[0]).toEqual({ requestKey: 'kos:stable-request:create', title: 'Summary' });
+    expect(calls[1]).toMatchObject({ taskId: 'task', expectedRevision: 4, requestKey: 'kos:stable-request:send' });
+    const latest = store.files('notes').find(item => item.path === chosen.path)!;
+    await store.saveText('notes', latest.path, patchMarkdown(await repository.readCurrentText(latest), {}, 'long-body'.repeat(5000)), latest.revision);
+    const referenced = await prepareCardAiAction(store, 'notes', board, ['p0'], 'compare', 'large-request', 'Compare');
+    expect(referenced.request.prompt.length).toBeLessThanOrEqual(32768);
+    expect(referenced.request.prompt).toContain('expected_hash'); expect(referenced.request.prompt).not.toContain('long-body');
+    store.dispose();
+  });
+  // Unit: user's Card/Whiteboard contract. Existing queue tests don't cover shared
+  // card identity, board placements, or content-bound review. Minimal: one card,
+  // two boards, and an offline restart through the real LibraryService/CloudVault.
+  it('reopens offline cards and boards and syncs shared references without copying their content', async () => {
+    const data = fixture(); await data.initialize();
+    const first = new LibraryService(data.host); await first.initialize(); data.setOffline(true);
+    const repository = new CardRepository(first, 'notes');
+    const card = await repository.createNote('同一想法', '共享正文');
+    const boards = await Promise.all([repository.createBoard('学习'), repository.createBoard('创作')]);
+    for (const board of boards) await repository.saveBoard(board, { version: 1, items: [{ id: 'placement', kind: 'card', card: cardRef(card), x: 10, y: 20, width: 280, height: 240 }], links: [] });
+    first.dispose();
+    const next = new LibraryService(data.host); await next.ready();
+    const reopened = new CardRepository(next, 'notes');
+    expect(cardsFromFiles(next.files('notes')).map(item => item.title)).toEqual(['同一想法']);
+    for (const board of boards) {
+      const saved = await reopened.readBoard(next.files('notes').find(item => item.path === board.path)!);
+      expect(resolveCard(saved.items[0].card!, next.files('notes'))?.path).toBe(card.path);
+      expect(JSON.stringify(saved)).not.toContain('共享正文');
+    }
+    data.setOffline(false); await next.refresh();
+    expect(next.getSnapshot().pending).toEqual([]);
+    // A second local replica downloads from the same synthetic cloud, no Mac mirror needed.
+    const deviceLocal = new Map<string, unknown>();
+    const device = new LibraryService({ async call<T>(operation: string, raw?: unknown) {
+      const args = raw as { key: string; value: unknown };
+      if (operation === 'get') return deviceLocal.get(args.key) as T;
+      if (operation === 'set') { deviceLocal.set(args.key, args.value); return undefined as T; }
+      if (operation === 'remove') { deviceLocal.delete(args.key); return undefined as T; }
+      return data.host.call<T>(operation, raw);
+    } });
+    await device.initialize();
+    const copiedBoard = await new CardRepository(device, 'notes').readBoard(device.files('notes').find(item => item.path === boards[0].path)!);
+    const copiedCard = resolveCard(copiedBoard.items[0].card!, device.files('notes'))!;
+    expect(await device.readText('notes', copiedCard)).toContain('共享正文');
+    // Removing a placement never removes the original card or its other appearance.
+    await reopened.saveBoard(next.files('notes').find(item => item.path === boards[0].path)!, { version: 1, items: [], links: [] });
+    expect(cardsFromFiles(next.files('notes'))).toHaveLength(1);
+    expect((await reopened.readBoard(next.files('notes').find(item => item.path === boards[1].path)!)).items).toHaveLength(1);
+    device.dispose(); next.dispose();
+  });
+  it('keeps card references across moves and does not substitute reused paths', async () => {
+    const data = fixture(); await data.initialize(); const store = new LibraryService(data.host); await store.initialize();
+    const repository = new CardRepository(store, 'notes'), card = await repository.createNote('Identity', 'Original');
+    await store.refresh(); const original = store.files('notes').find(file => file.path === card.path)!;
+    const reference = cardRef(original);
+    await store.move('notes', original.path, 'cards/renamed.md', original.revision); await store.refresh();
+    expect(resolveCard(reference, store.files('notes'))?.path).toBe('cards/renamed.md');
+    expect(resolveCard(reference, [{ ...original, frontmatter: 'type: card\ncard_id: replacement', documentId: 'replacement' }])).toBeUndefined();
+    store.dispose();
+  });
+  it('reviews the exact AI body while keeping layout and tag changes outside review', async () => {
+    const data = fixture(); await data.initialize(); const store = new LibraryService(data.host); await store.initialize();
+    const repository = new CardRepository(store, 'notes');
+    const card = await repository.createNote('AI thought', 'Unverified idea', { generated_by: 'ai' });
+    const text = await store.readText('notes', card); expect(needsReview(text)).toBe(true);
+    await repository.review(card, text);
+    const reviewed = await store.readText('notes', store.files('notes').find(file => file.path === card.path)!);
+    expect(needsReview(reviewed)).toBe(false);
+    expect(needsReview(patchMarkdown(reviewed, { tags: ['another topic'] }))).toBe(false);
+    expect(needsReview(patchMarkdown(reviewed, {}, 'Changed by AI'))).toBe(true);
+    store.dispose();
+  });
+  it('preserves an unreadable future whiteboard instead of resetting it', async () => {
+    const data = fixture(); await data.initialize(); await data.seed('whiteboards/future.md', patchMarkdown('', { type: 'whiteboard', title: 'Future' }, '{"version":2,"items":[],"links":[]}'));
+    const store = new LibraryService(data.host); await store.initialize(); const file = store.files('notes')[0];
+    const before = await store.readText('notes', file);
+    await expect(new CardRepository(store, 'notes').saveBoard(file, { version: 1, items: [], links: [] })).rejects.toThrow('INVALID_WHITEBOARD');
+    expect(await store.readText('notes', file)).toBe(before);
+    expect(() => parseWhiteboard(patchMarkdown('', {}, '{"version":1,"items":[],"links":[{"id":"x","from":"missing","to":"missing"}]}'))).toThrow();
+    store.dispose();
+  });
+  // Unit: real UI bridge timing regression found in whiteboard smoke. A save reply
+  // can still carry revision zero after the host has already acknowledged the file.
+  it('opens a new board when its acknowledgement overtakes the view snapshot', async () => {
+    const data = fixture(); await data.initialize(); const service = new LibraryService(data.host); await service.initialize();
+    const client = new LibraryClient({ async call<T>(operation: string, raw?: unknown) {
+      expect(operation).toBe('library');
+      const result = await dispatchLibrary(service, raw);
+      if ((raw as { command: string }).command === 'saveText') await service.refresh();
+      return result as T;
+    } }, () => () => {});
+    const repository = new CardRepository(client, 'notes');
+    const board = await repository.createBoard('Immediately open');
+    expect(board.revision).toBe(0);
+    expect(await repository.readBoard(board)).toEqual({ version: 1, items: [], links: [] });
+    client.dispose(); service.dispose();
+  });
   // Unit/U06: incomplete extraction must not claim complete coverage; stale-version
   // text must never be searchable as the current book. Existing tests only index Markdown.
   it('reopens partial book indexes, exposes complete offline hits with locators, and excludes replaced books', async () => {

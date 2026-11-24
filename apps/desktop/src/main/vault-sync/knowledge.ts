@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { isVaultId, isVaultPath, VAULT_FILE_MAX_BYTES } from '@cindy/device-link';
 import type { KnowledgeCallback, KnowledgeRequest } from '@cindy/mcps';
+import { InvalidCardMetadataError, stampAgentCard } from '@cindy/kos-workbench/cards/provenance';
 import { VaultFolder } from './disk';
 import { managedVaultRoot, vaultReplicaRoot } from './managed';
 import type { VaultConfiguration, VaultSyncConfiguration } from './service';
@@ -56,7 +57,13 @@ export function createKnowledgeTools(getAccess: () => Access | null): KnowledgeC
             total_chars: text.length, next_offset: offset + limit < text.length ? offset + limit : null };
         } else {
           if (request.expected_hash !== null && !validHash(request.expected_hash)) throw new KnowledgeError('INVALID_KNOWLEDGE_HASH');
-          const bytes = new TextEncoder().encode(request.text);
+          let previous: string | undefined;
+          if (request.expected_hash !== null) {
+            const current = await disk.read(request.path);
+            if (disk.hash(current) !== request.expected_hash) throw new KnowledgeError('KNOWLEDGE_CONFLICT');
+            previous = decode(current);
+          }
+          const bytes = new TextEncoder().encode(stampAgentCard(request.path, request.text, previous));
           if (bytes.length > VAULT_FILE_MAX_BYTES) throw new KnowledgeError('KNOWLEDGE_FILE_TOO_LARGE');
           assertCurrent(access);
           writeStarted = true;
@@ -71,10 +78,11 @@ export function createKnowledgeTools(getAccess: () => Access | null): KnowledgeC
     } catch (error) {
       const nativeCode = (error as NodeJS.ErrnoException)?.code;
       const conflict = nativeCode === 'EEXIST' || (error instanceof Error && error.message === 'VAULT_LOCAL_CHANGED');
-      const code = conflict ? 'KNOWLEDGE_CONFLICT' : error instanceof KnowledgeError ? error.message
+      const code = conflict ? 'KNOWLEDGE_CONFLICT' : error instanceof InvalidCardMetadataError ? 'INVALID_CARD_METADATA' : error instanceof KnowledgeError ? error.message
         : nativeCode === 'ENOENT' ? 'KNOWLEDGE_NOT_FOUND' : 'KNOWLEDGE_UNAVAILABLE';
       return { ok: false, errorCode: code, ...(writeStarted && !conflict ? { outcome: 'unknown' } : {}),
-        hint: conflict ? '内容已变化或创建目标已存在；先重读正文，再决定如何合并。'
+        hint: error instanceof InvalidCardMetadataError ? '卡片属性格式有误，原内容未改动。请修复 Markdown 顶部的 YAML 后再保存。'
+          : conflict ? '内容已变化或创建目标已存在；先重读正文，再决定如何合并。'
           : writeStarted ? '写入结果未确认，先读取并核对哈希，禁止自动重复写入。' : '仅查询当前宿主托管的本机副本；检查资料库是否已初始化、路径、格式与同步状态。' };
     }
   };

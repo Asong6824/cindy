@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { samplePdf, sampleEpub } from './reader-fixtures';
 import { fixture } from './fixture';
 import { patchMarkdown, localDay } from '../src/documents';
+import { validCardAiRequest } from '../src/cards/actions';
 import { LibraryService } from '../src/library/service';
 import { dispatchLibrary, runLibrary } from '../src/library/rpc';
 
@@ -38,7 +39,16 @@ const server = http.createServer(async (request, response) => {
       let body = ''; for await (const chunk of request) { body += chunk; if (body.length > 1024 * 1024) throw new Error('large'); }
       const payload = JSON.parse(body || '{}');
       if (pathname === '/__offline') { data.setOffline(payload.offline); response.end('{}'); return; }
-      try { const result = payload.operation === 'library' ? await dispatchLibrary(library, payload.payload) : await data.host.call(payload.operation, payload.payload); response.setHeader('content-type', 'application/json'); response.end(JSON.stringify({ result, snapshot: library.getSnapshot() })); }
+      try {
+        let result: unknown;
+        if (payload.operation === 'cardAi') {
+          if (!validCardAiRequest(payload.payload)) throw new Error('INVALID_CARD_AI_REQUEST');
+          const action = payload.payload;
+          const target = `cards/ai-${action.requestId}.md`;
+          if (!library.files('notes').some(file => file.path === target)) await library.saveText('notes', target,
+            patchMarkdown('', { type: 'card', card_id: `ai-${action.requestId}`, title: action.title, generated_by: 'ai' }, '这是合成预览结果，用于检查卡片保存与审核。'), 0);
+          result = { disposition: 'submitted', taskId: `synthetic-${action.requestId}`, runId: `synthetic-${action.requestId}` };
+        } else result = payload.operation === 'library' ? await dispatchLibrary(library, payload.payload) : await data.host.call(payload.operation, payload.payload); response.setHeader('content-type', 'application/json'); response.end(JSON.stringify({ result, snapshot: library.getSnapshot() })); }
       catch (error) { response.setHeader('content-type', 'application/json'); response.end(JSON.stringify({ error: error instanceof Error ? error.message : 'error' })); }
       return;
     }

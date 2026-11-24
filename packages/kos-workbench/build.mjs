@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const result = await build({ entryPoints: [path.join(root, 'src/main.tsx')], bundle: true, format: 'iife', target: 'es2022', platform: 'browser', minify: true, write: false, metafile: true,
+const result = await build({ entryPoints: [path.join(root, 'src/main.tsx')], bundle: true, outfile: path.join(root, 'dist/workbench.js'), format: 'iife', target: 'es2022', platform: 'browser', minify: true, write: false, metafile: true,
   define: { 'process.env.NODE_ENV': '"production"' }, legalComments: 'inline' });
-const js = result.outputFiles[0].text;
+const js = result.outputFiles.find(file => file.path.endsWith('.js')).text;
 const readers = await build({ entryPoints: [path.join(root, 'src/reader/runtime.ts')], bundle: true, format: 'iife', globalName: 'UmedaReaders', target: 'es2022', platform: 'browser', minify: true, write: false, metafile: true, legalComments: 'inline' });
 const readerJs = readers.outputFiles[0].text;
 const packages = new Map();
@@ -25,7 +25,7 @@ for (const [identity, { manifest, directory }] of [...packages].sort(([a], [b]) 
   for (const name of await fs.readdir(directory)) if (/^(license|copying|notice)(\.|$)/i.test(name) && (await fs.stat(path.join(directory, name))).isFile()) notices += await fs.readFile(path.join(directory, name), 'utf8') + '\n';
 }
 
-const css = await fs.readFile(path.join(root, 'src/ui/theme.css'), 'utf8');
+const css = (result.outputFiles.find(file => file.path.endsWith('.css'))?.text ?? '') + '\n' + await fs.readFile(path.join(root, 'src/ui/theme.css'), 'utf8');
 const body = '<div id="root"></div>';
 const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>${css}</style><!-- Open source notices:\n${notices.replace(/--/g, '—')} --></head><body>${body}<script type="application/json" id="umeda-reader-code">${JSON.stringify(readerJs).replace(/</g, '\\u003c')}</script><script>${js.replace(/<\/script/gi, '<\\/script')}</script></body></html>`;
 await fs.mkdir(path.join(root, 'dist'), { recursive: true });

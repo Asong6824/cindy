@@ -20,8 +20,8 @@ try {
  page.on('pageerror',error=>{errors.push(error.message);console.error(error.stack);});
  await page.addInitScript(()=>{window.__UMEDA_BOOT__={platform:'desktop',theme:'light',locale:'zh-CN'};});
  await page.reload();
- await page.getByText('检查离线内容',{exact:true}).first().waitFor({timeout:20000});
- assert.equal(await page.locator('.bento-card').count(),10);
+ await page.locator('.knowledge-sidebar').getByRole('button',{name:'卡片库',exact:true}).waitFor({timeout:20000});
+ assert.equal(await page.locator('.knowledge-sidebar nav button').count(),6);
  await page.screenshot({path:path.join(output, 'desktop-light.png'),fullPage:true});
  await page.evaluate(()=>document.documentElement.dataset.theme='dark');
  await page.screenshot({path:path.join(output, 'desktop-dark.png'),fullPage:true});
@@ -43,7 +43,7 @@ try {
  await page.request.post(origin+'/__offline',{data:{offline:false}});
  await page.getByRole('button',{name:'关闭',exact:true}).click();
  await page.getByRole('button',{name:'同步',exact:true}).click();
- await page.waitForFunction(()=>!document.querySelector('.sync-strip').textContent.includes('待同步'));
+ await page.waitForFunction(()=>!document.querySelector('.knowledge-sidebar footer').textContent.includes('待同步'));
  // The view uses the host domain bridge. Restoring history/trash must preserve the old bytes.
  await page.getByRole('button',{name:/阅读资料/}).click();
  await page.getByRole('button',{name:'历史版本',exact:true}).click();
@@ -138,16 +138,16 @@ try {
  await page.getByRole('textbox',{name:'搜索名称和已索引正文',exact:true}).fill('');
  await page.request.post(origin+'/__offline',{data:{offline:false}});
  // U03 e2e: closing before a delayed draft read must not replace the original with an empty form.
- const savedDraft={title:'原有草稿',body:'不要覆盖',type:'task',project:'',due:''};
- await page.request.post(origin+'/bridge',{data:{operation:'library',payload:{command:'savePreference',args:{key:'composer:notes',value:savedDraft}}}});
+ const savedDraft={title:'原有草稿',body:'不要覆盖'};
+ await page.request.post(origin+'/bridge',{data:{operation:'library',payload:{command:'savePreference',args:{key:'card-composer:notes',value:savedDraft}}}});
  let resumeDraft;const draftGate=new Promise(resolve=>{resumeDraft=resolve;});
- await page.route('**/bridge',async route=>{const p=route.request().postDataJSON();if(p.operation==='library' && p.payload?.command==='preference' && p.payload.args?.key==='composer:notes')await draftGate;await route.continue().catch(()=>{});});
+ await page.route('**/bridge',async route=>{const p=route.request().postDataJSON();if(p.operation==='library' && p.payload?.command==='preference' && p.payload.args?.key==='card-composer:notes')await draftGate;await route.continue().catch(()=>{});});
  await page.getByRole('button',{name:'新建',exact:true}).click();
- await page.getByRole('dialog',{name:'新建文档',exact:true}).waitFor();
- assert.equal(await page.getByRole('dialog').getByRole('textbox',{name:'标题',exact:true}).isDisabled(),true);
- await page.getByRole('dialog').getByRole('button',{name:'关闭',exact:true}).click();
+ await page.locator('.floating-capture').waitFor();
+ assert.equal(await page.locator('.floating-capture').getByRole('textbox',{name:'标题',exact:true}).isDisabled(),true);
+ await page.locator('.floating-capture').getByRole('button',{name:'关闭',exact:true}).click();
  resumeDraft();await page.unroute('**/bridge');
- const draftReply=await (await page.request.post(origin+'/bridge',{data:{operation:'library',payload:{command:'preference',args:{key:'composer:notes',fallback:null}}}})).json();
+ const draftReply=await (await page.request.post(origin+'/bridge',{data:{operation:'library',payload:{command:'preference',args:{key:'card-composer:notes',fallback:null}}}})).json();
  assert.deepEqual(draftReply.result,savedDraft);
  await page.evaluate(()=>document.documentElement.dataset.theme='dark');
  assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'dark');
@@ -161,17 +161,11 @@ try {
  await page.evaluate(()=>document.documentElement.dataset.theme='light');
  await page.screenshot({path:path.join(output,'library-mobile-light.png'),fullPage:true});
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
- await page.getByRole('button',{name:'工作台',exact:true}).click();
- await page.getByRole('button',{name:'调整布局',exact:true}).click();
- await page.getByRole('button',{name:'移动卡片 今日 ↑',exact:true}).click();
- await page.waitForFunction(()=>getComputedStyle(document.querySelector('.card-today')).order==='0');
- await page.getByRole('button',{name:'撤销',exact:true}).click();
- await page.waitForFunction(()=>getComputedStyle(document.querySelector('.card-today')).order==='1');
- await page.getByRole('button',{name:'完成布局',exact:true}).click();
+ await page.locator('.knowledge-sidebar nav').getByRole('button',{name:'白板',exact:true}).click();
  await page.screenshot({path:path.join(output, 'mobile-light.png'),fullPage:true});
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await page.evaluate(()=>document.documentElement.dataset.theme='dark');
  await page.screenshot({path:path.join(output, 'mobile-dark.png'),fullPage:true});
- console.log(JSON.stringify({cards:10,hostDomainBridge:true,historyRestored:true,trashRestored:true,offlineEditSurvivedReload:true,offlineDownloadAndFullBodySearch:true,desktopAndMobileLayouts:true,offlineMove:true,bookFullTextSearch:true,pdfHighlight:true,epubRendered:true,epubFontUpdated:true,imageAttachment:true,horizontalOverflow:false,errors}));
+ console.log(JSON.stringify({navigationEntries:6,hostDomainBridge:true,historyRestored:true,trashRestored:true,offlineEditSurvivedReload:true,offlineDownloadAndFullBodySearch:true,desktopAndMobileLayouts:true,offlineMove:true,bookFullTextSearch:true,pdfHighlight:true,epubRendered:true,epubFontUpdated:true,imageAttachment:true,horizontalOverflow:false,errors}));
  assert.deepEqual(errors,[]);
 }catch(error){const page=await app.firstWindow();await page.screenshot({path:path.join(output,'failure.png')}).catch(()=>{});console.error(await page.locator('.error-notice').allTextContents());throw error;}finally{await app.close();await fs.rm(directory,{recursive:true,force:true});}
