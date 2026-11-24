@@ -3,7 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { parse as parseToml } from 'smol-toml';
-import type { AgentKind, CustomProviderConfig, ProviderRuntimeModelConfig } from '@cindy/model-providers';
+import { mergeDiscoveredRuntimeModels, type AgentKind, type CustomProviderConfig,
+  type DiscoveredModel, type ProviderRuntimeModelConfig } from '@cindy/model-providers';
 import { isLocalCliProviderId } from '../../shared/localCliProvider.js';
 
 type ObjectValue = Record<string, unknown>;
@@ -20,6 +21,34 @@ export interface LocalCliProviderIo {
   env: NodeJS.ProcessEnv;
   /** Missing, unreadable or malformed files must not affect the other CLI. */
   read(path: string): Promise<string | null>;
+  /** Main injects discovery for this exact API route; no native OAuth cache is imported. */
+  discoverCodexModels?: LocalCliModelDiscovery;
+}
+
+type LocalCliModelDiscovery = (connection: LocalCliProviderConnection) => Promise<DiscoveredModel[] | null>;
+
+/** One active Codex API route per owner. Coalesce refreshes and back off failures;
+ * a destination, key or header change must immediately bypass the old snapshot. */
+export function createLocalCliModelDiscovery(
+  fetchModels: LocalCliModelDiscovery,
+  now: () => number = Date.now,
+): LocalCliModelDiscovery {
+  let cached: { signature: string; expires: number; pending: Promise<DiscoveredModel[] | null> } | undefined;
+  return connection => {
+    const runtime = connection.config.runtimes.codex;
+    const signature = createHash('sha256').update(JSON.stringify([
+      runtime?.baseUrl, connection.apiKey,
+      Object.entries(connection.headers ?? {}).sort(([a], [b]) => a.localeCompare(b)),
+    ])).digest('hex');
+    if (cached?.signature === signature && now() < cached.expires) return cached.pending;
+    const entry = { signature, expires: Infinity, pending: Promise.resolve(null) as Promise<DiscoveredModel[] | null> };
+    cached = entry;
+    entry.pending = Promise.resolve().then(() => fetchModels(connection)).catch(() => null).then(models => {
+      entry.expires = now() + (models?.length ? 5 * 60_000 : 30_000);
+      return models;
+    });
+    return entry.pending;
+  };
 }
 
 function object(value: unknown): ObjectValue {
@@ -101,7 +130,19 @@ export async function discoverLocalCliProviders(io: LocalCliProviderIo): Promise
       if (!value) return;
       headers[key] = value;
     }
-    return connection('codex', baseUrl, apiKey, [model(id)], 'openai-responses', headers);
+    const inherited = connection('codex', baseUrl, apiKey, [model(id)], 'openai-responses', headers)!;
+    try {
+      const discovered = await io.discoverCodexModels?.(inherited);
+      if (discovered?.length) {
+        const models = mergeDiscoveredRuntimeModels([], discovered).map(item => ({ ...item, defaultEnabled: true }));
+        // Keep the CLI's configured default first; discovery must not silently change it.
+        inherited.config.runtimes.codex!.models = [
+          models.find(item => item.id === id) ?? model(id),
+          ...models.filter(item => item.id !== id),
+        ];
+      }
+    } catch { /* A catalog outage must not hide an otherwise usable CLI connection. */ }
+    return inherited;
   };
   const claude = async () => {
     const home = string(io.env.CLAUDE_CONFIG_DIR) ?? path.join(io.home, '.claude');
@@ -135,9 +176,9 @@ export async function discoverLocalCliProviders(io: LocalCliProviderIo): Promise
   return results.flatMap(result => result.status === 'fulfilled' && result.value ? [result.value] : []);
 }
 
-export function defaultLocalCliProviderIo(): LocalCliProviderIo {
+export function defaultLocalCliProviderIo(discoverCodexModels?: LocalCliModelDiscovery): LocalCliProviderIo {
   return {
-    home: homedir(), env: { ...process.env },
+    home: homedir(), env: { ...process.env }, discoverCodexModels,
     read: async file => {
       try { return await readFile(file, 'utf8'); } catch { return null; }
     },

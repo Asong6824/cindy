@@ -140,7 +140,9 @@ import { clearXaiMediaModels } from './model-discovery/xai-media.js';
 import { getAuthState } from '../authManager.js';
 import { getCindyAiProviderName, getCindyAiProviderLogoKind } from '../cindyAiProviderName.js';
 import { getActiveAppSession, isAppSessionBoundaryPending } from '../appSessionState.js';
-import { defaultLocalCliProviderIo, discoverLocalCliProviders, localCliProviderRegistry } from '../model-access/localCliProviders.js';
+import { createLocalCliModelDiscovery, defaultLocalCliProviderIo, discoverLocalCliProviders, localCliProviderRegistry } from '../model-access/localCliProviders.js';
+import { fetchProviderModels } from './provider-model-fetch.js';
+import { outboundFetch } from './outbound-fetch.js';
 import { filterProviderCatalogForAccount } from './provider-access-policy.js';
 import { getAppCapabilities } from '../appCapabilities.js';
 import {
@@ -457,6 +459,8 @@ async function readXaiProviderOAuthToken(
 
 /** Set 用稳定函数引用去重，ensureActiveCatalogLoaded 的幂等调用不会重复注册清理副作用。 */
 function handleProviderSecretsCleared(): void {
+  localCliModelDiscoveryGeneration++;
+  localCliModelDiscovery = null;
   localCliProviderRegistry.clear();
   resetGenericOAuthMemoryCache();
   resetGrokOAuthMemoryCache();
@@ -803,6 +807,11 @@ export async function refreshDiscoveredCodexModels(
 // older DB read must never publish after a newer one or a persisted capability can disappear from
 // the in-memory routing catalog until the next full app restart.
 let customProviderCatalogRefreshGeneration = 0;
+let localCliModelDiscoveryGeneration = 0;
+let localCliModelDiscovery: {
+  owner: string;
+  read: ReturnType<typeof createLocalCliModelDiscovery>;
+} | null = null;
 
 export async function refreshCustomProvidersIntoCatalog(
   shouldApply: () => boolean = () => true,
@@ -820,11 +829,31 @@ export async function refreshCustomProvidersIntoCatalog(
   };
   const isCurrent = (): boolean =>
     generation === customProviderCatalogRefreshGeneration && shouldApply() && sameOwner();
+  const ownerKey = JSON.stringify([owner.mode, owner.dataOwnerId, owner.generation]);
+  if (owner.mode !== 'local') localCliModelDiscovery = null;
+  else if (localCliModelDiscovery?.owner !== ownerKey) {
+    const discoveryGeneration = ++localCliModelDiscoveryGeneration;
+    const canDiscover = (): boolean => sameOwner() && !isAppSessionBoundaryPending()
+      && discoveryGeneration === localCliModelDiscoveryGeneration;
+    localCliModelDiscovery = { owner: ownerKey, read: createLocalCliModelDiscovery(async connection => {
+      const runtime = connection.config.runtimes.codex!;
+      const result = await fetchProviderModels({
+        agent: 'codex', wireProtocol: 'openai-responses', authMethod: 'apiKey',
+        baseUrl: runtime.baseUrl, apiKey: connection.apiKey, headers: connection.headers,
+        redirect: 'error', responseByteLimit: 8 * 1024 * 1024, allowEmpty: true,
+      }, (url, init) => {
+        // Also guard pagination; a completed old-owner read cannot start another request.
+        if (!canDiscover()) throw new Error('CLI model discovery is no longer current');
+        return outboundFetch(url, init);
+      });
+      return canDiscover() && result.ok ? result.models ?? null : null;
+    }) };
+  }
   try {
     const [configs, inherited] = await Promise.all([
       listCustomProvidersWithSecureHeaders(),
       owner.mode === 'local' && owner.dataOwnerId
-        ? discoverLocalCliProviders(defaultLocalCliProviderIo()) : Promise.resolve([]),
+        ? discoverLocalCliProviders(defaultLocalCliProviderIo(localCliModelDiscovery?.read)) : Promise.resolve([]),
     ]);
     const publish = (stored: typeof configs): void => {
       const ids = new Set(stored.map(config => config.id));

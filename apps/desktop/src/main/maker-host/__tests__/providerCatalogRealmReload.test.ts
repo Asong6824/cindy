@@ -7,13 +7,15 @@ import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { localCliProviderRegistry } from '../../model-access/localCliProviders.js';
 import { getProviderRouteCredentialRevision } from '../provider-route.js';
+import { outboundFetch } from '../outbound-fetch.js';
 
 const h = vi.hoisted(() => ({
   endpoint: 'https://model.cn.example',
   buildEndpoint: 'https://model.cn.example',
   owner: 'owner-default',
   sessionMode: 'signed-out' as 'local' | 'signed-out',
-  localCliRead: vi.fn(async () => [] as import('../../model-access/localCliProviders.js').LocalCliProviderConnection[]),
+  localCliRead: vi.fn<(io?: import('../../model-access/localCliProviders.js').LocalCliProviderIo) =>
+    Promise<import('../../model-access/localCliProviders.js').LocalCliProviderConnection[]>>(async () => []),
   imageKeys: new Map<string, string>(),
   speechKey: null as string | null,
   secretsClearedListeners: new Set<() => void>(),
@@ -107,7 +109,8 @@ vi.mock('../../logger.js', () => ({
 vi.mock('../../model-access/localCliProviders.js', async (original) => ({
   ...await original<typeof import('../../model-access/localCliProviders.js')>(),
   discoverLocalCliProviders: h.localCliRead,
-  defaultLocalCliProviderIo: () => ({ home: '', env: {}, read: async () => null }),
+  defaultLocalCliProviderIo: (discoverCodexModels: import('../../model-access/localCliProviders.js').LocalCliProviderIo['discoverCodexModels']) =>
+    ({ home: '', env: {}, read: async () => null, discoverCodexModels }),
 }));
 vi.mock('../../authManager.js', () => ({
   getAuthState: () => ({ mode: 'signed-out', user: null }),
@@ -151,7 +154,8 @@ vi.mock('../grok-oauth-login.js', () => ({
   recoverGrokAuthAfterRejection: h.recoverGrokAuthAfterRejection,
   resetGrokOAuthMemoryCache: () => undefined,
 }));
-vi.mock('../generic-oauth.js', () => ({
+vi.mock('../generic-oauth.js', async original => ({
+  ...await original<typeof import('../generic-oauth.js')>(),
   configureGenericOAuth: () => undefined,
   hasGenericOAuthLogin: () => false,
   readCachedGenericOAuthAccessToken: () => null,
@@ -353,6 +357,53 @@ describe('provider catalog realm reload', () => {
       h.sessionMode = 'signed-out';
       await refreshCustomProvidersIntoCatalog();
       expect(getActiveCatalog().providers.some(p => p.id === config.id)).toBe(false);
+    } finally {
+      h.sessionMode = 'signed-out'; h.owner = 'owner-default';
+      h.customProviderRead.mockReset(); localCliProviderRegistry.clear(); setCustomProviders([]);
+    }
+  });
+
+  // User regression: localCliProviders unit injection alone missed production wiring.
+  // Unit: actual config -> authenticated HTTP discovery -> active catalog, then
+  // an owner change during a paginated response. No real HOME/network is used.
+  it('discovers multiple CLI models through Main and discards an old owner response before pagination', async () => {
+    const actual = await vi.importActual<typeof import('../../model-access/localCliProviders.js')>('../../model-access/localCliProviders.js');
+    const readCli = (io?: import('../../model-access/localCliProviders.js').LocalCliProviderIo) =>
+      actual.discoverLocalCliProviders({
+        home: path.resolve('fixture-models-home'), env: {},
+        read: async file => file.endsWith('config.toml')
+          ? 'model="first-model"\nmodel_provider="relay"\n[model_providers.relay]\nbase_url="https://cli-models.example/v1"'
+          : file.endsWith('auth.json') ? '{"OPENAI_API_KEY":"fixture-models-key"}' : null,
+        discoverCodexModels: io?.discoverCodexModels,
+      });
+    h.sessionMode = 'local'; h.owner = 'cli-models-owner';
+    h.customProviderRead.mockResolvedValue([]);
+    h.localCliRead.mockImplementationOnce(readCli);
+    const fetcher = vi.mocked(outboundFetch);
+    fetcher.mockClear();
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'first-model' }, { id: 'second-model' }] })));
+    try {
+      await refreshCustomProvidersIntoCatalog();
+      const provider = getActiveCatalog().providers.find(p => p.name === 'Codex CLI')!;
+      expect(provider.models.codex?.map(model => model.id)).toEqual(['first-model', 'second-model']);
+      const [url, init] = fetcher.mock.calls[0];
+      expect(url).toBe('https://cli-models.example/v1/models');
+      expect(new Headers(init?.headers).get('authorization')).toBe('Bearer fixture-models-key');
+      expect(init?.redirect).toBe('error');
+      expect(JSON.stringify(provider)).not.toContain('fixture-models-key');
+      h.owner = 'cli-models-next-owner';
+      h.localCliRead.mockImplementationOnce(readCli);
+      let reply!: (response: Response) => void;
+      fetcher.mockImplementationOnce(() => new Promise(resolve => { reply = resolve; }));
+      const pending = refreshCustomProvidersIntoCatalog();
+      await vi.waitFor(() => expect(reply).toBeTypeOf('function'), { interval: 1 });
+      h.owner = 'cli-models-final-owner';
+      reply(new Response(JSON.stringify({ data: [{ id: 'stale-model' }], next_cursor: 'next-page' })));
+      await pending;
+      expect(fetcher).toHaveBeenCalledTimes(2); // No next-page request with the old owner's key.
+      expect(getActiveCatalog().providers.find(p => p.id === provider.id)?.models.codex?.map(model => model.id))
+        .toEqual(['first-model', 'second-model']);
+      expect(localCliProviderRegistry.readKey(provider.id, 'codex')).toBeNull();
     } finally {
       h.sessionMode = 'signed-out'; h.owner = 'owner-default';
       h.customProviderRead.mockReset(); localCliProviderRegistry.clear(); setCustomProviders([]);

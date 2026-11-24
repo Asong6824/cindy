@@ -1,7 +1,7 @@
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { buildUserProvider } from '@cindy/model-providers';
-import { createLocalCliProviderRegistry, discoverLocalCliProviders, type LocalCliProviderIo } from '../localCliProviders.js';
+import { describe, expect, it, vi } from 'vitest';
+import { buildUserProvider, parseModelsListResponse } from '@cindy/model-providers';
+import { createLocalCliModelDiscovery, createLocalCliProviderRegistry, discoverLocalCliProviders, type LocalCliProviderIo } from '../localCliProviders.js';
 
 // Test value: discoverLocalCliProviders -> real provider projection and main-only key lookup.
 // Regression: existing CLI API settings were treated as missing official subscription logins.
@@ -22,6 +22,90 @@ const claudeSettings = JSON.stringify({ env: {
 } });
 
 describe('local CLI API connections', () => {
+  // User regression: a multi-model Codex API connection exposed only config.model.
+  // Existing cases cover config inheritance, never a discovered list. Unit tier:
+  // production discovery -> provider projection with two models, entirely in memory.
+  it('includes discovered Codex models and metadata while retaining the configured default and main-only credentials', async () => {
+    const io = fixture({ '.codex/config.toml': codexConfig,
+      '.codex/auth.json': '{"OPENAI_API_KEY":"fixture-key"}' });
+    io.discoverCodexModels = async connection => {
+      expect(connection.config.runtimes.codex?.baseUrl).toBe('https://relay.example/v1');
+      expect(connection.apiKey).toBe('fixture-key');
+      return parseModelsListResponse({ data: [
+        { id: 'second-model', context_window: 400_000 },
+        { id: 'custom-codex', display_name: 'Configured model' },
+        { id: 'second-model' },
+      ] });
+    };
+    const [item] = await discoverLocalCliProviders(io);
+    const provider = buildUserProvider(item.config);
+    expect(provider.models.codex?.map(model => model.id)).toEqual(['custom-codex', 'second-model']);
+    expect(provider.models.codex?.[1].contextWindow).toBe(400_000);
+    expect(JSON.stringify(item.config)).not.toContain('fixture-key');
+  });
+
+  it.each(['failure', 'empty', 'throw'] as const)('retains configured models when Codex discovery returns %s', async outcome => {
+    const io = fixture({ '.codex/config.toml': codexConfig,
+      '.codex/auth.json': '{"OPENAI_API_KEY":"fixture-key"}', '.claude/settings.json': claudeSettings });
+    io.discoverCodexModels = async () => {
+      if (outcome === 'throw') throw new Error('fixture network failure');
+      return outcome === 'empty' ? [] : null;
+    };
+    const items = await discoverLocalCliProviders(io);
+    expect(items.map(item => item.agent)).toEqual(['codex', 'claude-code']);
+    expect(items[0].config.runtimes.codex?.models.map(model => model.id)).toEqual(['custom-codex']);
+  });
+
+  // The catalog is re-read from several UI/auth paths. Protect the new network
+  // boundary against repeated requests and reusing one credential's model list
+  // after a key/header/endpoint change; clock and responses are injected (unit).
+  it('coalesces Codex discovery, refreshes expired lists and isolates changed route credentials', async () => {
+    let time = 0;
+    let release!: (models: { id: string; name: string }[]) => void;
+    const fetchModels = vi.fn(() => new Promise<{ id: string; name: string }[]>(resolve => { release = resolve; }));
+    const discover = createLocalCliModelDiscovery(fetchModels, () => time);
+    const io = fixture({ '.codex/config.toml': codexConfig,
+      '.codex/auth.json': '{"OPENAI_API_KEY":"fixture-key"}' });
+    const [connection] = await discoverLocalCliProviders(io);
+    const first = discover(connection);
+    const concurrent = discover(connection);
+    await Promise.resolve();
+    expect(fetchModels).toHaveBeenCalledOnce();
+    release([{ id: 'new-model', name: 'New model' }]);
+    expect(await first).toEqual(await concurrent);
+    await discover(connection);
+    expect(fetchModels).toHaveBeenCalledOnce();
+    fetchModels.mockImplementation(async () => [{ id: 'replacement', name: 'Replacement' }]);
+    time = 300_001;
+    expect(await discover(connection)).toEqual([{ id: 'replacement', name: 'Replacement' }]);
+    await discover({ ...connection, apiKey: 'rotated-fixture-key' });
+    await discover({ ...connection, apiKey: 'rotated-fixture-key', headers: { 'X-Tenant': 'second' } });
+    await discover({ ...connection, config: { ...connection.config, runtimes: {
+      codex: { ...connection.config.runtimes.codex!, baseUrl: 'https://another.example/v1' },
+    } } });
+    expect(fetchModels).toHaveBeenCalledTimes(5);
+    // A fresh owner gets a fresh reader, including for an identical endpoint/key.
+    await createLocalCliModelDiscovery(fetchModels)(connection);
+    expect(fetchModels).toHaveBeenCalledTimes(6);
+  });
+
+  it('backs off failed Codex discovery and recovers on the next eligible refresh', async () => {
+    let time = 0;
+    const fetchModels = vi.fn(async (): Promise<{ id: string; name: string }[] | null> => { throw new Error('fixture offline'); });
+    const discover = createLocalCliModelDiscovery(fetchModels, () => time);
+    const io = fixture({ '.codex/config.toml': codexConfig,
+      '.codex/auth.json': '{"OPENAI_API_KEY":"fixture-key"}' });
+    io.discoverCodexModels = discover;
+    await discoverLocalCliProviders(io);
+    await discoverLocalCliProviders(io);
+    expect(fetchModels).toHaveBeenCalledOnce();
+    time = 30_001;
+    fetchModels.mockResolvedValue([{ id: 'recovered', name: 'Recovered' }]);
+    const [item] = await discoverLocalCliProviders(io);
+    expect(item.config.runtimes.codex?.models.map(model => model.id)).toEqual(['custom-codex', 'recovered']);
+    expect(fetchModels).toHaveBeenCalledTimes(2);
+  });
+
   it('projects both API routes and models without including keys in catalog configs', async () => {
     const items = await discoverLocalCliProviders(fixture({
       '.codex/config.toml': codexConfig, '.codex/auth.json': '{"OPENAI_API_KEY":"fixture-codex-key"}',
