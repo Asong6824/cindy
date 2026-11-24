@@ -96,6 +96,8 @@ import { updateCustomProviderIfUnchanged } from './custom-provider-store.js';
 import { migrateManagedOllamaProvider } from '../local-model-runtime/managedOllamaProvider.js';
 import { migrateLocalConnectProvider } from '../../shared/localConnectHarness.js';
 import {
+  beginProviderRouteMutation,
+  type ProviderRouteMutationRelease,
   setCustomProviderKeyReader,
   setCustomProviderHeaderReader,
   setOAuthTokenReader,
@@ -137,7 +139,8 @@ import {
 import { clearXaiMediaModels } from './model-discovery/xai-media.js';
 import { getAuthState } from '../authManager.js';
 import { getCindyAiProviderName, getCindyAiProviderLogoKind } from '../cindyAiProviderName.js';
-import { getActiveAppSession } from '../appSessionState.js';
+import { getActiveAppSession, isAppSessionBoundaryPending } from '../appSessionState.js';
+import { defaultLocalCliProviderIo, discoverLocalCliProviders, localCliProviderRegistry } from '../model-access/localCliProviders.js';
 import { filterProviderCatalogForAccount } from './provider-access-policy.js';
 import { getAppCapabilities } from '../appCapabilities.js';
 import {
@@ -454,6 +457,7 @@ async function readXaiProviderOAuthToken(
 
 /** Set 用稳定函数引用去重，ensureActiveCatalogLoaded 的幂等调用不会重复注册清理副作用。 */
 function handleProviderSecretsCleared(): void {
+  localCliProviderRegistry.clear();
   resetGenericOAuthMemoryCache();
   resetGrokOAuthMemoryCache();
   resetSubscriptionAccountCaches();
@@ -808,10 +812,35 @@ export async function refreshCustomProvidersIntoCatalog(
     return;
   }
   const generation = ++customProviderCatalogRefreshGeneration;
+  const owner = getActiveAppSession();
+  const sameOwner = (): boolean => {
+    const current = getActiveAppSession();
+    return current.dataOwnerId === owner.dataOwnerId
+      && current.generation === owner.generation && current.mode === owner.mode;
+  };
   const isCurrent = (): boolean =>
-    generation === customProviderCatalogRefreshGeneration && shouldApply();
+    generation === customProviderCatalogRefreshGeneration && shouldApply() && sameOwner();
   try {
-    const configs = await listCustomProvidersWithSecureHeaders();
+    const [configs, inherited] = await Promise.all([
+      listCustomProvidersWithSecureHeaders(),
+      owner.mode === 'local' && owner.dataOwnerId
+        ? discoverLocalCliProviders(defaultLocalCliProviderIo()) : Promise.resolve([]),
+    ]);
+    const publish = (stored: typeof configs): void => {
+      const ids = new Set(stored.map(config => config.id));
+      const mutations: ProviderRouteMutationRelease[] = [];
+      try {
+        const local = localCliProviderRegistry.replace(
+          inherited.filter(item => !ids.has(item.config.id)),
+          () => sameOwner() && owner.mode === 'local' && !isAppSessionBoundaryPending(),
+          id => { mutations.push(beginProviderRouteMutation(id)); },
+        );
+        setCustomProviderConfigs([...stored, ...local]);
+        for (const finish of mutations) finish.commit();
+      } finally {
+        for (const finish of mutations) finish();
+      }
+    };
     if (!isCurrent()) {
       log.info('discarded stale custom provider catalog refresh');
       return;
@@ -849,12 +878,12 @@ export async function refreshCustomProvidersIntoCatalog(
         log.info('discarded stale custom provider catalog refresh after cas miss');
         return;
       }
-      setCustomProviderConfigs(fresh);
+      publish(fresh);
       requestCodexApiModelProbe();
       log.info('custom providers merged into active catalog after cas miss', { count: fresh.length });
       return;
     }
-    setCustomProviderConfigs(next);
+    publish(next);
     requestCodexApiModelProbe();
     log.info('custom providers merged into active catalog', { count: next.length });
   } catch (err) {
@@ -864,6 +893,7 @@ export async function refreshCustomProvidersIntoCatalog(
       });
       return;
     }
+    localCliProviderRegistry.clear();
     setCustomProviders([]);
     log.warn('failed to load custom providers; cleared current owner catalog snapshot', {
       err: String(err),

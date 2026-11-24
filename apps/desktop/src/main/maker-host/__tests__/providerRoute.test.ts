@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { discoverLocalCliProviders, createLocalCliProviderRegistry } from '../../model-access/localCliProviders.js';
 import { createAnthropicCompatProxy } from '@cindy/anthropic-compat-proxy';
 import { loadCatalogWithSource, type ModelRegistry } from '@cindy/model-providers';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -964,6 +965,33 @@ describe('resolveSessionRouteDecision — 自定义供应商(resolve 时注入 k
     setCustomProviderKeyReader(() => null);
     setProviderOAuthTokenReader(() => null);
     clearSessionProvider('s-user');
+  });
+
+  // Unit regression: real CLI config -> provider projection -> frozen runtime route.
+  // Existing custom-provider tests inject configs directly and missed the inheritance gap.
+  // Minimal input is one API-key CLI; no credentials are sent to any actual server.
+  it.each(['codex', 'claude-code'] as const)('routes inherited %s API settings with the matching key and model', async agent => {
+    const io = {
+      home: path.resolve('fixture-home'), env: {},
+      read: async (file: string) => file.endsWith('config.toml')
+        ? 'model = "fixture-model"\nmodel_provider = "relay"\n[model_providers.relay]\nbase_url = "https://relay.example/v1"'
+        : file.endsWith('auth.json') ? '{"OPENAI_API_KEY":"fixture-key"}'
+        : JSON.stringify({ env: { ANTHROPIC_BASE_URL: 'https://relay.example/anthropic',
+          ANTHROPIC_AUTH_TOKEN: 'fixture-key', ANTHROPIC_MODEL: 'fixture-model' } }),
+    };
+    const connections = await discoverLocalCliProviders(io);
+    const registry = createLocalCliProviderRegistry();
+    registry.replace(connections, () => true);
+    const connection = connections.find(item => item.agent === agent)!;
+    const provider = buildUserProvider(connection.config);
+    setCustomProviders([provider]);
+    setCustomProviderKeyReader((id, kind) => registry.readKey(id, kind));
+    const result = await resolveFrozenProviderRouteDecision(provider.id, provider.routing[agent]!, 0, agent, KEY, 'fixture-model');
+    expect(result).toMatchObject({ decision: {
+      upstreamOverride: agent === 'codex' ? 'https://relay.example/v1' : 'https://relay.example/anthropic',
+      headerOverride: { authorization: 'Bearer fixture-key', ...(agent === 'claude-code' ? { 'x-api-key': 'fixture-key' } : {}) },
+    } });
+    registry.clear();
   });
 
   it('user provider: 读注入 key + 路由到 baseUrl；isUserProviderSession=true', () => {

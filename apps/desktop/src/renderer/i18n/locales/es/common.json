@@ -3636,6 +3636,7 @@
       }
     },
     "providers": {
+      "localCliDescription": "Usa la configuración de API del CLI de este equipo. Edítala en la configuración del CLI y reinicia Umeda para aplicar los cambios.",
       "llamacpp": {
         "ownedElsewhere": "El servicio modelo se ejecuta en otra instancia Cindy. Descargue modelos o cambie el contexto allí, o detenga su servicio primero.",
         "primaryPick": "Selección principal · prueba esto primero",

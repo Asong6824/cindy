@@ -3587,6 +3587,7 @@
       }
     },
     "providers": {
+      "localCliDescription": "Uses this computer’s CLI API settings. Edit them in the CLI configuration and restart Umeda to apply changes.",
       "llamacpp": {
         "ownedElsewhere": "The model service is running in another Cindy instance. Download models or change context there, or stop its service first.",
         "primaryPick": "Primary pick · try this first",

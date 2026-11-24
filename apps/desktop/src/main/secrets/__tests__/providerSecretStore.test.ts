@@ -47,6 +47,8 @@ vi.mock('../../appSessionState', () => ({
 
 import {
   createProviderSecretStore,
+  readCustomProviderKey,
+  readCustomProviderHeaders,
   providerSecretSavedForSetup,
   storeCustomMcpToken,
   botEnvironmentSecretIo,
@@ -75,6 +77,27 @@ import {
   PROVIDER_SECRET_IDS,
   REMOTE_MCP_BRIDGE_TOKEN_STORAGE_KEY,
 } from '../../../shared/providerSecrets';
+
+import { localCliProviderRegistry } from '../../model-access/localCliProviders.js';
+
+// Unit regression: the real routing key/header entry points must read ephemeral CLI credentials
+// without touching safeStorage or exposing them to a different runtime/owner. Existing tests only
+// covered persisted slots. Minimal input: one inherited Codex connection with no stored key.
+it('reads CLI credentials only through the authorized main-only snapshot', () => {
+  const id = 'local-cli:codex:0123456789abcdef01234567';
+  let authorized = true;
+  localCliProviderRegistry.replace([{ agent: 'codex', apiKey: 'fixture-cli-key',
+    headers: { 'x-tenant': 'fixture-private-tenant' }, config: { id, name: 'Codex CLI', runtimes: {} },
+  }], () => authorized);
+  try {
+    expect(readCustomProviderKey(id, 'codex')).toBe('fixture-cli-key');
+    expect(readCustomProviderHeaders(id, 'codex')).toEqual({ 'x-tenant': 'fixture-private-tenant' });
+    expect(readCustomProviderKey(id, 'claude-code')).toBeNull();
+    authorized = false;
+    expect(readCustomProviderKey(id, 'codex')).toBeNull();
+    expect(readCustomProviderHeaders(id, 'codex')).toBeNull();
+  } finally { localCliProviderRegistry.clear(); }
+});
 
 /** 内存版 SecretStorageIo:按"存储键名"读写一个 Map,模拟 safeStorage 文件层。 */
 function createMemoryIo(): SecretStorageIo & { store: Map<string, string> } {

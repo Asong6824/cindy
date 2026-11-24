@@ -1,4 +1,4 @@
-import { BUNDLED_CATALOG } from '@cindy/model-providers';
+import { BUNDLED_CATALOG, buildUserProvider } from '@cindy/model-providers';
 import { ProvidersSection } from '../../../src/renderer/components/settings/ProvidersSection';
 import { mountPage, subscription, forbid } from '../../ui-page/harness';
 import type { SubscriptionAccountCommand } from '../../../src/shared/subscriptionAccounts';
@@ -68,6 +68,15 @@ mountPage({
   route: '/settings?tab=providers&connect=anthropic',
   host: ctx => {
     refreshControl.defer = ctx.case === 'wizard-reopen';
+    if (ctx.case === 'inherited-cli') {
+      snapshot.providerOrder.push('local-cli:codex:0123456789abcdef01234567');
+      snapshot.providers.push({
+      ...buildUserProvider({ id: 'local-cli:codex:0123456789abcdef01234567', name: 'Codex CLI',
+        runtimes: { codex: { baseUrl: 'https://relay.example/v1', wireProtocol: 'openai-responses',
+          models: [{ id: 'custom-model', name: 'Custom model', defaultEnabled: true }] } },
+      }), connected: true, remoteInvocationEnabled: false,
+      });
+    }
     if (ctx.case === 'builtin-save-guard') snapshot.providers.push({
       ...provider('anthropic'), id: 'gemini', name: 'Gemini', connected: false,
       agents: [], auth: { method: 'apiKey' }, audioModels: [{ id: 'fixture-media', name: 'Fixture' }],

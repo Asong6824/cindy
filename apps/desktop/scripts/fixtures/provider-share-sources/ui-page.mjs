@@ -19,6 +19,7 @@ export default {
     'src/renderer/features/provider-share/providerShareStore': { partial: 'export const useProviderShareReceived = () => window.providerSourcesFixture.received;' },
   },
   cases: {
+    'inherited-cli': { about: 'Inherited local CLI API configuration remains selectable without invalid edit, disconnect, rename or delete actions' },
     'subscription-claude-choice': { about: 'An existing Claude Code login is shown before choosing it or another account' },
     'subscription-codex-choice': { about: 'An existing Codex login is shown before choosing it or another account' },
     'subscription-login': { about: 'OpenAI browser login adds an account inside the existing provider' },
@@ -34,6 +35,15 @@ export default {
     await page.getByTestId('provider-share-received').waitFor();
   },
   async check(page, ui) {
+    if (ui.case === 'inherited-cli') {
+      await page.locator('button[aria-current]').filter({ hasText: 'Codex CLI' }).click();
+      await page.getByText(await ui.t('settings.providers.localCliDescription'), { exact: true }).waitFor();
+      for (const key of ['settings.providers.custom.editAria', 'settings.providers.button.disconnect', 'settings.providers.custom.deleteAria']) {
+        assert.equal(await page.getByRole('button', { name: await ui.t(key), exact: true }).count(), 0);
+      }
+      await ui.capture('inherited-cli-detail');
+      return;
+    }
     if (ui.case === 'subscription-claude-choice' || ui.case === 'subscription-codex-choice') {
       await page.getByRole('button', { name: await ui.t('settings.providers.addProvider'), exact: true }).click();
       const dialog = page.getByRole('dialog');

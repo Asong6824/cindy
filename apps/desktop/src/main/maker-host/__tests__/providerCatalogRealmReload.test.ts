@@ -5,11 +5,15 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
+import { localCliProviderRegistry } from '../../model-access/localCliProviders.js';
+import { getProviderRouteCredentialRevision } from '../provider-route.js';
 
 const h = vi.hoisted(() => ({
   endpoint: 'https://model.cn.example',
   buildEndpoint: 'https://model.cn.example',
   owner: 'owner-default',
+  sessionMode: 'signed-out' as 'local' | 'signed-out',
+  localCliRead: vi.fn(async () => [] as import('../../model-access/localCliProviders.js').LocalCliProviderConnection[]),
   imageKeys: new Map<string, string>(),
   speechKey: null as string | null,
   secretsClearedListeners: new Set<() => void>(),
@@ -100,11 +104,16 @@ vi.mock('../../logger.js', () => ({
     error: vi.fn(),
   }),
 }));
+vi.mock('../../model-access/localCliProviders.js', async (original) => ({
+  ...await original<typeof import('../../model-access/localCliProviders.js')>(),
+  discoverLocalCliProviders: h.localCliRead,
+  defaultLocalCliProviderIo: () => ({ home: '', env: {}, read: async () => null }),
+}));
 vi.mock('../../authManager.js', () => ({
   getAuthState: () => ({ mode: 'signed-out', user: null }),
 }));
 vi.mock('../../appSessionState.js', () => ({
-  getActiveAppSession: () => ({ mode: 'signed-out', dataOwnerId: h.owner }),
+  getActiveAppSession: () => ({ mode: h.sessionMode, dataOwnerId: h.owner, generation: 0 }),
   activeOwnerScopeKey: () => `signed-out:${h.owner ?? 'none'}`,
   isAppSessionBoundaryPending: () => false,
   ownerScopedUserDataPath: (...segments: string[]) =>
@@ -162,14 +171,17 @@ vi.mock('../../secrets/providerSecretStore.js', () => ({
 vi.mock('../outbound-fetch.js', () => ({
   outboundFetch: vi.fn(async () => { throw new Error('offline'); }),
 }));
-vi.mock('../provider-route.js', () => ({
-  getProviderRouteCredentialRevision: () => 0,
+vi.mock('../provider-route.js', async (original) => {
+  const actual = await original<typeof import('../provider-route.js')>();
+  return {
+  beginProviderRouteMutation: actual.beginProviderRouteMutation,
+  getProviderRouteCredentialRevision: actual.getProviderRouteCredentialRevision,
   setCustomProviderHeaderReader: () => undefined,
   setCustomProviderKeyReader: () => undefined,
   setOAuthTokenReader: () => undefined,
   setProviderOAuthTokenReader: () => undefined,
   setProviderViewsReader: () => undefined,
-}));
+}; });
 vi.mock('../provider-diagnostics.js', () => ({
   setDiagnosticsKeyReader: () => undefined,
   setDiagnosticsOAuthTokenReader: () => undefined,
@@ -311,6 +323,40 @@ describe('provider catalog realm reload', () => {
 
     await expect(__testing.readXaiProviderOAuthToken({ forceRefresh: true })).resolves.toBeNull();
     expect(h.recoverGrokAuthAfterRejection).toHaveBeenCalledTimes(3);
+  });
+
+  // Regression: API-key CLI settings previously never reached the selectable catalog.
+  // Unit tier, fake file reader; existing owner-race cases only covered stored DB providers.
+  it('publishes local CLI API routes without persisting them and revokes keys across owners', async () => {
+    const config: CustomProviderConfig = {
+      id: 'local-cli:codex:0123456789abcdef01234567', name: 'Codex CLI',
+      runtimes: { codex: { baseUrl: 'https://third-party.example/v1',
+        wireProtocol: 'openai-responses', models: [{ id: 'custom-model', name: 'custom-model' }] } },
+    };
+    h.sessionMode = 'local';
+    h.localCliRead.mockResolvedValueOnce([{ config, agent: 'codex', apiKey: 'fixture-cli-key' }]);
+    h.customProviderRead.mockResolvedValue([]);
+    try {
+      await refreshCustomProvidersIntoCatalog();
+      expect(getActiveCatalog().providers.find(p => p.id === config.id)?.routing.codex?.upstream)
+        .toBe('https://third-party.example/v1');
+      expect(localCliProviderRegistry.readKey(config.id, 'codex')).toBe('fixture-cli-key');
+      const revision = getProviderRouteCredentialRevision(config.id);
+      h.localCliRead.mockResolvedValueOnce([{ config, agent: 'codex', apiKey: 'fixture-cli-key' }]);
+      await refreshCustomProvidersIntoCatalog();
+      expect(getProviderRouteCredentialRevision(config.id)).toBe(revision);
+      h.localCliRead.mockResolvedValueOnce([{ config, agent: 'codex', apiKey: 'rotated-fixture-key' }]);
+      await refreshCustomProvidersIntoCatalog();
+      expect(getProviderRouteCredentialRevision(config.id)).toBeGreaterThan(revision);
+      h.owner = 'different-owner';
+      expect(localCliProviderRegistry.readKey(config.id, 'codex')).toBeNull();
+      h.sessionMode = 'signed-out';
+      await refreshCustomProvidersIntoCatalog();
+      expect(getActiveCatalog().providers.some(p => p.id === config.id)).toBe(false);
+    } finally {
+      h.sessionMode = 'signed-out'; h.owner = 'owner-default';
+      h.customProviderRead.mockReset(); localCliProviderRegistry.clear(); setCustomProviders([]);
+    }
   });
 
   it('drops a stale owner custom-provider read and clears the current snapshot on failure', async () => {

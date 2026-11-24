@@ -3587,6 +3587,7 @@
       }
     },
     "providers": {
+      "localCliDescription": "Verwendet die API-Einstellungen der CLI auf diesem Computer. Ändere die CLI-Konfiguration und starte Umeda neu, um die Änderungen anzuwenden.",
       "llamacpp": {
         "ownedElsewhere": "Der Modelldienst läuft in einer anderen Cindy-Instanz. Lade dort Modelle herunter oder ändere den Kontext, oder beende zuerst den dortigen Dienst.",
         "primaryPick": "Erste Wahl · zuerst ausprobieren",

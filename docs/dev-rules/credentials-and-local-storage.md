@@ -66,6 +66,31 @@
 请求头；应前滚修复，不把密文转回明文来恢复兼容。实现与回归：`maker-host/custom-mcp-store.ts`
 及同名测试。Bearer token 继续走现有独立安全存储。
 
+## 个人 Umeda 的本机 CLI API 配置继承（2026-11-24）
+
+本地个人模式在现有供应商目录初始化／刷新时，只读识别本机 Codex 与 Claude Code 的
+用户级 API 配置，生成独立的 `Codex CLI`／`Claude Code CLI` 连接；官方订阅登录判据不变。
+连接配置与密钥只在 Main 内存中保存，不写入供应商数据库或另存凭证，不修改原 CLI 文件。
+目录只含地址、模型与请求头已配置标记；API Key 和请求头值只交给 Main 路由读取器。
+连接 ID 绑定引擎与目标地址；换地址生成不同 ID，不让已有任务静默改投其他上游。
+密钥快照绑定本地 owner 与运行代次，切号／边界未稳定时不可读，云端账号与 `--mock`
+不自动继承。配置变动在下次目录重载时读取，重启应用可确保生效。
+
+- Codex：`CODEX_HOME` 或用户目录 `.codex` 下的 `config.toml`，支持顶层选中的 profile、
+  `model_provider`、Responses 上游、`env_key`／静态 bearer／`auth.json.OPENAI_API_KEY`，
+  以及宿主已继承的 `OPENAI_BASE_URL`／`OPENAI_API_KEY`；OAuth tokens 不当作 API Key。
+- Claude Code：`CLAUDE_CONFIG_DIR` 或用户目录 `.claude/settings.json` 的 API 环境，
+  支持第三方 `ANTHROPIC_AUTH_TOKEN`／`ANTHROPIC_API_KEY`、地址与显式模型及三档型号。
+  官方订阅 bearer、Bedrock／Vertex／Foundry 专属认证不在这条 API 继承路径中。
+- Codex 的静态／环境请求头及 Claude 的 `ANTHROPIC_CUSTOM_HEADERS` 同样留在 Main；
+  不执行 `apiKeyHelper`、shell 启动脚本或 hooks，不读取项目级设置，不猜测未配置的型号。
+  GUI 启动时没有继承到的 shell 环境变量不会通过启动 shell 自动补读。
+- 连接参数在 CLI 中编辑，Umeda 中保留模型开关和停用能力，不提供无效的编辑／删除／断开
+  或列模型刷新按钮。普通自定义连接与原有订阅账号不受影响。
+
+实现：`main/model-access/localCliProviders.ts`、`maker-host/createDesktopProviderService.ts`
+与 `secrets/providerSecretStore.ts`；回归覆盖配置解析、实际路由、凭证读取与 owner 切换。
+
 ## Claude 订阅只经 Claude Code 自己的登录
 
 Anthropic 只允许用户用自己的订阅登录**未修改的 Claude Code**；第三方应用不得提供

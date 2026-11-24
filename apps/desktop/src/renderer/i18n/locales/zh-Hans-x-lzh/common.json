@@ -3546,6 +3546,7 @@
       }
     },
     "providers": {
+      "localCliDescription": "承本机 CLI 之 API 配置。改 CLI 配置后，重启 Umeda 乃生效。",
       "llamacpp": {
         "ownedElsewhere": "模型服务方行于他一 Cindy 运行个体中。请于彼处取下模型或改上下文，或先止该运行个体之服务。",
         "primaryPick": "首荐 · 先试此",

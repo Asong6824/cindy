@@ -150,6 +150,7 @@ import { SettingsPageHeader } from '@/components/ui/settings-rows';
 import { providerGroupDeviceCount } from '../../../shared/providerGroup';
 import { applyProviderOrder } from '../../../shared/providerOrder';
 import type { AgentKind, CustomProviderConfig, ProviderView } from '@cindy/model-providers';
+import { isLocalCliProviderId } from '../../../shared/localCliProvider';
 import { isCustomRoutedProvider, isOrganizationManagedProvider, storedCustomProviderId } from '@cindy/model-providers';
 
 // ---------------------------------------------------------------------------
@@ -693,7 +694,7 @@ function DetailHeader({
 }) {
   const { t } = useTranslation();
   const management = useProviderManagement(provider);
-  const canRename = !!provider && provider.id !== 'xd' && !isOrganizationManagedProvider(provider);
+  const canRename = !!provider && provider.id !== 'xd' && !isOrganizationManagedProvider(provider) && !isLocalCliProviderId(provider.id);
   const resolvedDelete =
     deleteAction ??
     (provider && supportsBuiltinConnectionManagement(provider)
@@ -2230,6 +2231,19 @@ function CustomProviderHeader({
   };
   const isOAuth =
     provider.auth.method === 'oauth' && (!!provider.auth.oauth || !!provider.auth.native);
+  if (isLocalCliProviderId(provider.id)) {
+    return (
+      <DetailHeader
+        children={children}
+        icon={providerIcon(provider, 18)}
+        title={provider.name}
+        subtitle={t('settings.providers.localCliDescription')}
+        provider={provider}
+        status={{ kind: 'neutral', label: t(provider.connected
+          ? 'settings.providers.pill.configured' : 'settings.providers.pill.unconfigured') }}
+      />
+    );
+  }
   if (isOAuth)
     return (
       <GenericOAuthHeader
@@ -2342,7 +2356,7 @@ function ListRow({
         <button data-settings-search-action="Select the provider whose details are displayed"
           type="button"
           onClick={onSelect}
-          onDoubleClick={provider.id === 'xd' ? undefined : () => void management.rename()}
+          onDoubleClick={provider.id === 'xd' || isLocalCliProviderId(provider.id) ? undefined : () => void management.rename()}
           aria-current={selected}
           className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pl-3 pr-2.5 text-left"
         >
@@ -3469,7 +3483,7 @@ export function ProvidersSection() {
                                 refreshDisabled: refreshingProviderId !== null,
                                 refreshIdleLabel: t('settings.providers.models.refreshBuiltinAria'),
                               }
-                            : effectiveSelected.source === 'user' && effectiveSelected.id !== MANAGED_LLAMACPP_PROVIDER_ID
+                            : effectiveSelected.source === 'user' && !isLocalCliProviderId(effectiveSelected.id) && effectiveSelected.id !== MANAGED_LLAMACPP_PROVIDER_ID
                               ? {
                                   onRefresh: () => void handleRefreshModels(effectiveSelected),
                                   refreshing: refreshingProviderId === effectiveSelected.id,

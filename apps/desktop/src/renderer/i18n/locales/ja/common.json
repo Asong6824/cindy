@@ -3546,6 +3546,7 @@
       }
     },
     "providers": {
+      "localCliDescription": "このコンピューターの CLI の API 設定を使用します。CLI の設定を変更した後、Umeda を再起動すると反映されます。",
       "llamacpp": {
         "ownedElsewhere": "モデルサービスは別の Cindy インスタンスで実行中です。モデルのダウンロードやコンテキストの変更はそちらで行うか、先にそのサービスを停止してください。",
         "primaryPick": "第一候補 · まず試す",

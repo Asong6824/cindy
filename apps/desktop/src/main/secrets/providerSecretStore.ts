@@ -3,6 +3,7 @@ import {
   readByokCredential,
 } from '../model-access/byokCredentials.js';
 import { app, safeStorage } from 'electron';
+import { isLocalCliProviderId, localCliProviderRegistry } from '../model-access/localCliProviders.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -422,6 +423,7 @@ export function getProviderSecretStore(): ProviderSecretStore {
  * 与 renderer 经通用 safe-storage IPC 写入的 .enc 文件字节级互通。
  */
 export function readCustomProviderKey(providerId: string, agent: string): string | null {
+  if (isLocalCliProviderId(providerId)) return localCliProviderRegistry.readKey(providerId, agent);
   const byok = readByokCredential(providerId, agent);
   if (byok) return byok;
   if (isInstalledByokProvider(providerId)) return null;
@@ -454,6 +456,7 @@ export function readCustomProviderHeaders(
   providerId: string,
   agent: string,
 ): Record<string, string> | null {
+  if (isLocalCliProviderId(providerId)) return localCliProviderRegistry.readHeaders(providerId, agent);
   const storageProviderId = storedCustomProviderId(providerId);
   try {
     const raw = electronSecretIo.read(customProviderHeaderStorageKey(storageProviderId, agent));
